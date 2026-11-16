@@ -1,6 +1,6 @@
-# SSM Online
+# Slam Masters Online
 
-**Saturday Night Slam Masters** (SNES, Capcom, 1994), playable online with friends, plus modes
+**Saturday Night Slam Masters** (Muscle Bomber in Japan; SNES, Capcom, 1994), playable online with friends, plus modes
 the original never had: 2 vs 2 in the full arena with ring-out, 3 vs 3 and 4 vs 4.
 
 The game runs from its own code: the server holds your ROM dump, and the client translates the
