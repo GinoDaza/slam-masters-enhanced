@@ -106,6 +106,6 @@ describe.skipIf(!haveRom())('rollback', () => {
         expect(sums[p]!.size).toBe(ref.sums.size);
       }
       expect(stalls).toBeGreaterThan(0);
-    }, 120_000);
+    });
   }
 });

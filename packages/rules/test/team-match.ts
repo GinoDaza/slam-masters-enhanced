@@ -39,16 +39,27 @@ export function teamMatch(offsets: number[] = [0]): (rules: Ruleset, offset?: nu
       for (let f = 0; f < SELECTED; f++) g.step(padsFromScript(st[f] ?? 'wait').slice(0, 4));
       selected.set(offset, g.m.save());
     }
-  }, 60_000);
+  });
+
+  /** snapshots at FIGHT, by ruleset and offset: each is reached once a file */
+  const fights = new Map<Ruleset, Map<number, Uint8Array>>();
 
   /** A game with `rules` at the start of the fight. */
   function fight(rules: Ruleset, offset = 0): Game {
     const g = new Game(loadRom());
     installRules(g, rules);
+    const byOffset = fights.get(rules) ?? new Map<number, Uint8Array>();
+    fights.set(rules, byOffset);
+    const saved = byOffset.get(offset);
+    if (saved) {
+      g.m.load(saved);
+      return g;
+    }
     g.m.load(selected.get(offset)!);
     const st = steps(offset);
     for (let f = SELECTED; f < FIGHT; f++) g.step(padsFromScript(st[f] ?? 'wait').slice(0, 4));
     expect(g.m.wram[0x1ba0]! & 0x40, 'a team match').toBe(0x40);
+    byOffset.set(offset, g.m.save());
     return g;
   }
   return fight;

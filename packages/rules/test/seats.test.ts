@@ -33,7 +33,7 @@ describe('seats', () => {
     for (const s of TO_MENU) g.step(padsFromScript(s).slice(0, 4));
     expect(g.m.wram[0x56]).toBe(4);
     expect(chosenTeamSize(g.m)).toBe(3);
-  }, 60_000);
+  });
 
   it.skipIf(!haveRom())('P1 and P3 (pads 1 and 3) are on opposite teams', () => {
     const g = new Game(loadRom());
@@ -59,5 +59,5 @@ describe('seats', () => {
     const side = (pad: number) => [0x800, 0xa00, 0xc00, 0xe00].map((p) => (w[p + 0x77] === pad ? w[p + 0x17d] : -1)).find((v) => v! >= 0);
     expect(side(1)).toBe(0);
     expect(side(3)).toBe(1);
-  }, 120_000);
+  });
 });

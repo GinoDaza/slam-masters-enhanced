@@ -79,7 +79,7 @@ describe.skipIf(!haveRom())('players 5-8', () => {
     for (let k = 0; k < 3000 && state() !== 0x1a; k++) step(g, 0);
     for (let k = 0; k < 900; k++) step(g, 0);
     fight = g.m.save();
-  }, 180_000);
+  });
 
   const atFight = () => {
     const g = new Game(loadRom());
@@ -123,7 +123,7 @@ describe.skipIf(!haveRom())('players 5-8', () => {
     const def = held();
     expect(new Set(def).size, 'the buttons do different things').toBeGreaterThan(1);
     expect(held([0x20, 0x40, 0x80])).toEqual(def);
-  }, 60_000);
+  });
 
   it("player 5's pad drives 6800, player 7's drives nobody", () => {
     const run = (x: number[]) => {
@@ -134,7 +134,7 @@ describe.skipIf(!haveRom())('players 5-8', () => {
     const still = run([]);
     expect(run([PAD.LEFT]), 'player 5').not.toBe(still);
     expect(run([0, 0, PAD.LEFT | PAD.Y]), 'player 7: the CPU plays 6C00').toBe(still);
-  }, 60_000);
+  });
 
   it('a rollback session with six slots (pad 1, players 5 and 6 late) ends where a straight run does', () => {
     const pad = (s: number, f: number) => [PAD.LEFT, PAD.RIGHT, PAD.Y, PAD.B, 0][((f >> 4) + s) % 5]!;
@@ -152,5 +152,5 @@ describe.skipIf(!haveRom())('players 5-8', () => {
     session.sync();
     expect(session.rollbacks).toBeGreaterThan(0);
     expect(checksum(g.m.save())).toBe(checksum(straight.m.save()));
-  }, 60_000);
+  });
 });

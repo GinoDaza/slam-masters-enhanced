@@ -119,5 +119,5 @@ describe.skipIf(!haveRom())('the extras picked on the player select', () => {
     const all = [...BASE, ...EXTRA].map((p) => w[p + 0x01]);
     expect(new Set(all).size).toBe(8);
     for (const p of [...BASE, ...EXTRA]) expect(w[p]! & 0x80, p.toString(16)).toBe(0x80);
-  }, 120_000);
+  });
 });

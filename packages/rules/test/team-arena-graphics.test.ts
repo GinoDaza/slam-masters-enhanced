@@ -31,7 +31,7 @@ describe.skipIf(!haveRom())('team matches in the singles arena: graphics', () =>
     const classic = fight(classicRules);
     expect(classic.m.objx.every((v) => v === 0)).toBe(true);
     expect(classic.m.oamx.every((v) => v === 0)).toBe(true);
-  }, 60_000);
+  });
 
   it('full arena: the wide picture (400 px) shows the sides, the SNES picture is its middle', () => {
     const g = fight(teamArenaRules);
@@ -54,7 +54,7 @@ describe.skipIf(!haveRom())('team matches in the singles arena: graphics', () =>
     let same = 0;
     for (let y = 0; y < HEIGHT; y++) for (let x = 0; x < WIDTH; x++) if (wide.pixels[y * 400 + 72 + x] === narrow.pixels[y * WIDTH + x]) same++;
     expect(same / (WIDTH * HEIGHT)).toBeGreaterThan(0.95);
-  }, 60_000);
+  });
 
   it('a 400 px renderer shows a classic match as the SNES picture between black sides', () => {
     const g = fight(classicRules);
@@ -69,7 +69,7 @@ describe.skipIf(!haveRom())('team matches in the singles arena: graphics', () =>
       expect(Array.from(wide.pixels.subarray(y * 400 + 72, y * 400 + 72 + WIDTH))).toEqual(Array.from(narrow.pixels.subarray(y * WIDTH, (y + 1) * WIDTH)));
       expect(wide.pixels[y * 400]).toBe(0);
     }
-  }, 60_000);
+  });
 
   it('full arena: the picture fills the 224 lines, classic keeps lines 31-214', () => {
     const drawn = (g: ReturnType<typeof fight>) => {
@@ -89,5 +89,5 @@ describe.skipIf(!haveRom())('team matches in the singles arena: graphics', () =>
     expect(classic.m.tall).toBe(0);
     expect(classic.m.hudLift).toBe(0);
     expect(drawn(classic)).toEqual(Array.from({ length: 184 }, (_, y) => 31 + y));
-  }, 60_000);
+  });
 });

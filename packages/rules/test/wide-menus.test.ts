@@ -76,7 +76,7 @@ describe.skipIf(!haveRom())('the menus in the wide picture', () => {
     let wallpaper = 0;
     for (const y of lines) for (let x = 0; x < 24; x++) if (s.modeSelect.wide[y * 400 + x] === s.modeSelect.wide[y * 400 + x + 48]) wallpaper++;
     expect(wallpaper).toBe(24 * lines.length);
-  }, 120_000);
+  });
 
   it('the entry of a 3 VS 3 / 4 VS 4: the extra players\' boxes in the margins, numbered by seat', () => {
     /** the label digits of the panels' boxes (BG3 tiles 30 + n), panel by panel, top first */
@@ -98,7 +98,7 @@ describe.skipIf(!haveRom())('the menus in the wide picture', () => {
     // drawn: 5P's box frame (pink, the panels' own palette 0) beside 1P's
     const pink = four.wide.filter((p, i) => i % 400 < 72 && p === ((31 << 11) | (23 << 0))).length;
     expect(pink).toBeGreaterThan(100);
-  }, 180_000);
+  });
 
   it('full arena: the Game Mode Select\'s panels across the 400 px, every grey one the same grey, no flash', () => {
     const g = new Game(loadRom());
@@ -137,7 +137,7 @@ describe.skipIf(!haveRom())('the menus in the wide picture', () => {
     expect(panel(team, 2)).toEqual(panel(singles, 2));
     expect(panel(team, 3)).toEqual(panel(singles, 3));
     expect(panel(team, 0)).not.toEqual(panel(singles, 0));
-  }, 60_000);
+  });
 
   it('full arena: the player select\'s belt goes on into the margins', () => {
     const g = new Game(loadRom());
@@ -176,7 +176,7 @@ describe.skipIf(!haveRom())('the menus in the wide picture', () => {
     let belt = 0;
     for (let y = 40; y < 144; y++) for (const x of [0, 40, 360, 399]) if (px(x, y) !== backdrop) belt++;
     expect(belt).toBeGreaterThan(300);
-  }, 60_000);
+  });
 
   it('classic: the menus keep black sides', () => {
     const s = shots(classicRules);
@@ -184,5 +184,5 @@ describe.skipIf(!haveRom())('the menus in the wide picture', () => {
       expect(shot.margin, name).toBe(0);
       expect(drawnMargins(shot.wide), name).toBe(0);
     }
-  }, 120_000);
+  });
 });

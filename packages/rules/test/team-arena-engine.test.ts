@@ -16,7 +16,7 @@ describe.skipIf(!haveRom())('team matches in the singles arena: items, speed, ro
     // C18BBF set them up in this match; C2032D initialises them (+00 bit 7) on its first frame
     expect(items(fight(teamArenaRules, 2)).map((v) => v & 0x80)).toEqual([0x80, 0x80]);
     expect(items(fight(classicRules, 2))).toEqual([0, 0]);
-  }, 60_000);
+  });
 
   it('full arena: twice the CPU, so four wrestlers do not slow the game down', () => {
     const count = (g: Game) => {
@@ -33,7 +33,7 @@ describe.skipIf(!haveRom())('team matches in the singles arena: items, speed, ro
     expect(arena.m.overclock).toBe(1);
     expect(count(arena)).toBeGreaterThanOrEqual(298);
     expect(fight(classicRules).m.overclock).toBe(0);
-  }, 60_000);
+  });
 
   it('full arena: a rollback restores the camera, the items and the floor', () => {
     const start = fight(teamArenaRules, 2).m.save();
@@ -61,5 +61,5 @@ describe.skipIf(!haveRom())('team matches in the singles arena: items, speed, ro
     session.sync();
     expect(session.rollbacks).toBeGreaterThan(0);
     expect(checksum(g.m.save())).toBe(checksum(straight.m.save()));
-  }, 60_000);
+  });
 });

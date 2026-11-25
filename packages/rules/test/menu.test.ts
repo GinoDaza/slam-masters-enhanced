@@ -66,7 +66,7 @@ describe.skipIf(!haveRom())('the Game Mode Select: 1 VS 1 to 4 VS 4', () => {
       [1, false],
       [1, false],
     ]);
-  }, 60_000);
+  });
 
   it('full arena: a rollback restores the choice', () => {
     const g = atMenu(teamArenaRules);
@@ -79,7 +79,7 @@ describe.skipIf(!haveRom())('the Game Mode Select: 1 VS 1 to 4 VS 4', () => {
     expect(chosenTeamSize(g.m)).toBe(2);
     press(g, PAD.RIGHT);
     expect(chosenTeamSize(g.m)).toBe(3);
-  }, 60_000);
+  });
 
   it('full arena: 3 VS 3 goes on to the Team Battle Royal player select', () => {
     const g = atMenu(teamArenaRules);
@@ -89,7 +89,7 @@ describe.skipIf(!haveRom())('the Game Mode Select: 1 VS 1 to 4 VS 4', () => {
     for (let f = 0; f < 120; f++) g.step([0, 0, 0, 0]);
     expect(g.m.wram[0x56]).toBe(0x0c);
     expect(team(g)).toBe(true);
-  }, 60_000);
+  });
 
   it('classic: the original two panels, left / right toggle team play', () => {
     const g = atMenu(classicRules);
@@ -100,5 +100,5 @@ describe.skipIf(!haveRom())('the Game Mode Select: 1 VS 1 to 4 VS 4', () => {
     press(g, PAD.RIGHT);
     expect(team(g)).toBe(false);
     expect(g.m.rulesWord).toBe(0);
-  }, 60_000);
+  });
 });

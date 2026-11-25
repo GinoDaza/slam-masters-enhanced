@@ -28,7 +28,7 @@ describe.skipIf(!haveRom())('team matches in the singles arena: play', () => {
       if (n || g.m.cyc !== c.h || g.m.vline !== c.v) bad.push(`frame ${f + 1}: ${n} WRAM bytes, line ${g.m.vline} clock ${g.m.cyc}`);
     }
     expect(bad).toEqual([]);
-  }, 60_000);
+  });
 
   const outAndBack = (g: Game) => {
     const bot = new Bot(g, [
@@ -59,7 +59,7 @@ describe.skipIf(!haveRom())('team matches in the singles arena: play', () => {
     const r = outAndBack(fight(classicRules));
     expect(r.results[1], 'out').toBe(-1);
     expect(r.cameraY).toBeLessThanOrEqual(0x68);
-  }, 60_000);
+  });
 
   it('full arena: out through the front ropes, the camera down to the floor, back in', () => {
     const r = outAndBack(fight(teamArenaRules));
@@ -74,7 +74,7 @@ describe.skipIf(!haveRom())('team matches in the singles arena: play', () => {
     // banner's "PIN" there, which the "x:xx PASSED" message's band then shows)
     expect(r.band).toBe(0);
     expect(r.banner.filter((t) => t !== 0)).toEqual([]);
-  }, 60_000);
+  });
 
   it('full arena: 20 seconds outside is a count out, his team loses', () => {
     const g = fight(teamArenaRules);
@@ -92,5 +92,5 @@ describe.skipIf(!haveRom())('team matches in the singles arena: play', () => {
     }
     expect(countOut, 'COUNT OUT').toBe(true);
     expect(state.toString(16), 'his team lost (22), did not win (20)').toBe('22');
-  }, 60_000);
+  });
 });

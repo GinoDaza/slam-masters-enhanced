@@ -78,7 +78,7 @@ describe.skipIf(!haveRom())('netplay', () => {
       const frames = peers.map((n) => n.session.frame);
       expect(Math.max(...frames) - Math.min(...frames)).toBeLessThanOrEqual(3);
       expect(peers[0]!.skipped).toBeGreaterThan(0);
-    }, 120_000);
+    });
   }
 
   it('6 peers: players 5 and 6 drive Machine.padsx, every checksum agrees', () => {
@@ -97,7 +97,7 @@ describe.skipIf(!haveRom())('netplay', () => {
     expect(w[0x1ff0], 'player 5').not.toBe(0);
     expect(w[0x1ff1], 'player 6').not.toBe(0);
     expect(w[0x1ff2], 'player 7: none').toBe(0);
-  }, 180_000);
+  });
 
   it('slots with gaps (pads 1 and 3, player 6): every checksum agrees', () => {
     const fold = (g: Game) =>
@@ -112,7 +112,7 @@ describe.skipIf(!haveRom())('netplay', () => {
     for (const f of common) for (const m of sums) expect(m.get(f), `frame ${f}`).toBe(sums[0]!.get(f));
     // pad 3 is the second peer's (SNES pad 3, with the multitap), player 6 the third's
     expect(peers[0]!.session.game.m.wram[0x1ff0]).not.toBe(0);
-  }, 120_000);
+  });
 
   it('detects a desync', () => {
     const { peers } = play(2, 300, [0, 0], () => 2, (t, peers) => {
@@ -120,5 +120,5 @@ describe.skipIf(!haveRom())('netplay', () => {
     });
     expect(peers[0]!.desync).toBeGreaterThan(90);
     expect(peers[1]!.desync).toBeGreaterThan(90);
-  }, 60_000);
+  });
 });

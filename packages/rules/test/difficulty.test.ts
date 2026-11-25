@@ -36,11 +36,11 @@ describe.skipIf(!haveRom())('the default difficulty', () => {
     expect(classicRules.difficulty).toBe(5);
     expect(levels(singles(classicRules))).toEqual([5, 15]);
     expect(levels(singles(teamArenaRules))).toEqual([5, 15]);
-  }, 120_000);
+  });
 
   it("the original's level 3 installs nothing: CPU level 9", () => {
     const g = singles({ ...classicRules, difficulty: 3 });
     expect(g.runner.overrides.has(0xc01320)).toBe(false);
     expect(levels(g)).toEqual([3, 9]);
-  }, 120_000);
+  });
 });

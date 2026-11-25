@@ -45,7 +45,7 @@ describe.skipIf(!haveRom())('singles in the full arena: the wide picture', () =>
       expect(w16(g, 0x1a87)).toBeGreaterThanOrEqual(31);
     }
     expect(worst).toBeLessThanOrEqual(0);
-  }, 120_000);
+  });
 
   it('full arena: each side rope shows its own shake frame', () => {
     const g = singles(teamArenaRules);
@@ -89,7 +89,7 @@ describe.skipIf(!haveRom())('singles in the full arena: the wide picture', () =>
       checked++;
     }
     expect(checked, 'frames with the left rope shaking alone').toBeGreaterThan(0);
-  }, 120_000);
+  });
 
   it('with the multitap: no PRESS / START labels at the bottom in the full arena, classic keeps them', () => {
     // BG3 rows 25-26 (map at word 4C00) beside the clock, after a whole blink cycle
@@ -110,11 +110,11 @@ describe.skipIf(!haveRom())('singles in the full arena: the wide picture', () =>
     expect(g.m.wram[0x7a], 'more than two pads').not.toBe(0);
     expect(bottom(g)).toEqual([]);
     expect(bottom(singles(classicRules, true)).length).toBeGreaterThan(0);
-  }, 120_000);
+  });
 
   it('classic: the SNES picture', () => {
     const g = singles(classicRules);
     expect(g.m.wide).toBe(0);
     expect(g.m.tall).toBe(0);
-  }, 120_000);
+  });
 });
