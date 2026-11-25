@@ -4,13 +4,19 @@
  * delay for everyone. Before the start the host seats the players (`seats` messages): two
  * teams of `size` seats (1 VS 1 to 4 VS 4), numbered team by team (P1-P3 against P4-P6 in
  * 3 VS 3); each seat is a pad of the game (@ssm/rules seatSlot: pad 1 is the first seat, it
- * drives the menus). Seats may stay empty (the CPU), and who has no seat watches.
+ * drives the menus). Seats may stay empty (the CPU), and who has no seat waits in the lobby. A
+ * match ends for everybody when one of its players goes back to the lobby or leaves.
  */
-import { seatSlot } from '@ssm/rules';
+import { rulesById, seatSlot } from '@ssm/rules';
 
 export interface Member {
   peer: number;
   name: string;
+  ready: boolean;
+  /** in the match */
+  playing: boolean;
+  /** its round trip to the server, ms (-1: not known yet) */
+  rtt: number;
 }
 
 export interface StartMsg {
@@ -29,6 +35,15 @@ export const TEAM_SEATS = 4;
 /** players in a match at most */
 export const MAX_PLAYERS = 2 * TEAM_SEATS;
 
+/**
+ * Input delay (frames) for these round trips to the server: an input crosses half of the sender's
+ * and half of the receiver's. Rollback hides the rest, so it grows slower than the latency.
+ */
+export function autoDelay(rtts: readonly number[]): number {
+  const [a = 0, b = 0] = [...rtts].sort((x, y) => y - x);
+  return Math.min(4, Math.max(2, 1 + Math.ceil((a + b) / 2 / 33)));
+}
+
 export class Room {
   readonly ws: WebSocket;
   me = -1;
@@ -39,16 +54,21 @@ export class Room {
   size = 2;
   /** seat team * TEAM_SEATS + place -> peer id (null: empty, the CPU); only `size` a team count */
   seats: (number | null)[] = Array<number | null>(MAX_PLAYERS).fill(null);
-  /** round trip to the server, ms */
-  ping = 0;
+  /** Ruleset id, as the host set it */
+  rules: string;
+  /** frames of input delay, null: by the pings (autoDelay) */
+  delay: number | null = null;
   onChange: () => void = () => {};
   onStart: (msg: StartMsg) => void = () => {};
   onBinary: (data: Uint8Array) => void = () => {};
   onLeave: (m: Member) => void = () => {};
   onClose: () => void = () => {};
+  /** the connection is gone */
+  closed = false;
   private timer = 0;
 
-  constructor(code: string, name: string) {
+  constructor(code: string, name: string, rules: string) {
+    this.rules = rules;
     const url = `${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}/ws`;
     this.ws = new WebSocket(url);
     this.ws.binaryType = 'arraybuffer';
@@ -58,6 +78,7 @@ export class Room {
     };
     this.ws.onclose = () => {
       clearInterval(this.timer);
+      this.closed = true;
       this.onClose();
     };
     this.ws.onmessage = (e) => {
@@ -66,11 +87,12 @@ export class Room {
       if (msg.t === 'joined') {
         this.me = msg.peer;
         this.code = msg.room;
-        this.members = [...msg.peers, { peer: msg.peer, name }].sort((a, b) => a.peer - b.peer);
+        this.members = [...msg.peers.map((p: Member) => ({ ...p, rtt: -1 })), { peer: msg.peer, name, ready: false, playing: false, rtt: -1 }].sort((a, b) => a.peer - b.peer);
         this.fixSeats();
+        if (this.isHost) this.sendSeats(); // the room list shows the choices
         this.onChange();
       } else if (msg.t === 'peer-join') {
-        this.members = [...this.members, { peer: msg.peer, name: msg.name }].sort((a, b) => a.peer - b.peer);
+        this.members = [...this.members, { peer: msg.peer, name: msg.name, ready: false, playing: false, rtt: -1 }].sort((a, b) => a.peer - b.peer);
         this.fixSeats();
         if (this.isHost) this.sendSeats(); // for the newcomer
         this.onChange();
@@ -79,19 +101,101 @@ export class Room {
         this.members = this.members.filter((x) => x.peer !== msg.peer);
         this.fixSeats();
         this.onChange();
-        if (m) this.onLeave(m);
+        if (m?.playing) this.onLeave(m);
       } else if (msg.t === 'pong') {
-        this.ping = Math.round(performance.now() - msg.id);
+        const rtt = Math.round(performance.now() - msg.id);
+        this.update(this.me, { rtt });
+        this.say({ t: 'rtt', rtt });
+        this.onChange();
+      } else if (msg.t === 'rtt') {
+        this.update(msg.from, { rtt: msg.rtt });
+        this.onChange();
+      } else if (msg.t === 'state') {
+        const m = this.members.find((x) => x.peer === msg.peer);
+        const left = m?.playing && !msg.playing;
+        this.update(msg.peer, { ready: msg.ready, playing: msg.playing });
+        this.onChange();
+        if (m && left && m.peer !== this.me) this.onLeave(m);
+      } else if (msg.t === 'take') {
+        if (this.isHost) this.seat(msg.from, msg.seat);
       } else if (msg.t === 'seats') {
         if (msg.from !== this.members[0]?.peer) return; // only the host seats
         this.size = msg.size;
+        this.rules = msg.rules;
+        this.delay = msg.delay;
         this.seats = msg.seats;
         this.fixSeats();
         this.onChange();
       } else if (msg.t === 'start') {
-        this.onStart(msg);
+        if (msg.from === this.members[0]?.peer) this.onStart(msg);
       }
     };
+  }
+
+  private update(peer: number, change: Partial<Member>): void {
+    this.members = this.members.map((m) => (m.peer === peer ? { ...m, ...change } : m));
+  }
+
+  private say(msg: object): void {
+    if (this.ws.readyState === WebSocket.OPEN) this.ws.send(JSON.stringify(msg));
+  }
+
+  get self(): Member | undefined {
+    return this.members.find((m) => m.peer === this.me);
+  }
+
+  /** Some players are still in a match: the next one waits. */
+  get playing(): boolean {
+    return this.members.some((m) => m.playing);
+  }
+
+  setReady(ready: boolean): void {
+    this.say({ t: 'ready', ready });
+  }
+
+  /** Out of the match, in the lobby again. Send it after the match's last input. */
+  back(): void {
+    this.say({ t: 'back' });
+  }
+
+  /** Sit on a free seat. */
+  take(seat: number): void {
+    if (this.isHost) this.seat(this.me, seat);
+    else this.say({ t: 'take', seat });
+  }
+
+  /** Host: move a member to a free seat. */
+  private seat(peer: number, seat: number): void {
+    if (!this.open.includes(seat) || this.seated(seat) || !this.members.some((m) => m.peer === peer)) return;
+    this.seats = this.seats.map((p, s) => (s === seat ? peer : p === peer ? null : p));
+    this.changed();
+  }
+
+  /** Host: the mode; team sizes it does not have go back to 2. */
+  setRules(rules: string): void {
+    if (!this.isHost) return;
+    this.rules = rules;
+    if (!rulesById(rules).modeMenu) this.size = Math.min(this.size, 2);
+    this.changed();
+  }
+
+  /** Host: frames of input delay, null for automatic. */
+  setDelay(delay: number | null): void {
+    if (!this.isHost) return;
+    this.delay = delay;
+    this.changed();
+  }
+
+  /** The delay a match started now gets. */
+  get frames(): number {
+    return this.delay ?? autoDelay(this.members.map((m) => m.rtt));
+  }
+
+  /** Host: the choices changed. */
+  private changed(): void {
+    this.fixSeats();
+    this.sendSeats();
+    this.onChange();
   }
 
   get isHost(): boolean {
@@ -127,18 +231,14 @@ export class Room {
     const next = [...this.seats];
     [next[a], next[b]] = [next[b]!, next[a]!];
     this.seats = next;
-    this.fixSeats();
-    this.sendSeats();
-    this.onChange();
+    this.changed();
   }
 
   /** Host: the team size; whoever loses a seat takes a free one, or watches. */
   setSize(size: number): void {
     if (!this.isHost) return;
     this.size = size;
-    this.fixSeats();
-    this.sendSeats();
-    this.onChange();
+    this.changed();
   }
 
   /** Host: deal the seated players to the open seats at random. */
@@ -159,9 +259,7 @@ export class Room {
       [next[0], next[k]] = [next[k]!, null];
     }
     this.seats = next;
-    this.fixSeats();
-    this.sendSeats();
-    this.onChange();
+    this.changed();
   }
 
   /**
@@ -191,21 +289,22 @@ export class Room {
   }
 
   private sendSeats(): void {
-    this.ws.send(JSON.stringify({ t: 'seats', seats: this.seats, size: this.size }));
+    this.say({ t: 'seats', seats: this.seats, size: this.size, rules: this.rules, delay: this.delay });
   }
 
   /** Pad 1's seat (the first of team 1) is taken: the game can start. */
   get ready(): boolean {
-    return this.seats[0] !== null && this.members.length > 1;
+    return this.seats[0] !== null && this.members.length > 1 && !this.playing;
   }
 
   /** Host: start the match for everyone in the room (the host included). */
-  start(delay: number, rules: string): void {
+  start(): void {
+    if (!this.isHost || !this.ready) return;
     const players = this.open
       .filter((s) => this.seats[s] !== null)
       .map((s) => ({ peer: this.seats[s]!, slot: seatSlot(this.size, Math.floor(s / TEAM_SEATS), s % TEAM_SEATS) }));
-    const msg: StartMsg = { t: 'start', players, size: this.size, delay, rules };
-    this.ws.send(JSON.stringify(msg));
+    const msg: StartMsg = { t: 'start', players, size: this.size, delay: this.frames, rules: this.rules };
+    this.say(msg);
     this.onStart(msg);
   }
 

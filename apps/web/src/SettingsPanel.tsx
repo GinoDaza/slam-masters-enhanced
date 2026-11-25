@@ -1,6 +1,7 @@
 /** The settings screen: controls, sound, picture. Changes apply at once, in a match too. */
 import { useEffect, useState, useSyncExternalStore } from 'react';
 import { connectedGamepads } from './input.ts';
+import { holdNav } from './nav.ts';
 import { BUTTONS, BUTTON_HELP, bindButton, bindKey, buttonsOf, defaults, getSettings, keyName, onSettings, setSettings, type Button, type Settings } from './settings.ts';
 
 export const useSettings = (): Settings => useSyncExternalStore(onSettings, getSettings);
@@ -14,7 +15,7 @@ export function SettingsPanel({ onBack }: { onBack: () => void }) {
       <h1>Settings</h1>
       <div className="row" role="tablist">
         {TABS.map((t) => (
-          <button key={t} role="tab" aria-selected={t === tab} className={t === tab ? 'on' : ''} onClick={() => setTab(t)}>
+          <button key={t} role="tab" aria-selected={t === tab} className={t === tab ? 'on' : ''} data-first={t === tab || undefined} autoFocus={t === tab} onClick={() => setTab(t)}>
             {t}
           </button>
         ))}
@@ -72,6 +73,7 @@ function ControlSettings() {
       }
       setWaiting(null);
     };
+    holdNav(true);
     addEventListener('keydown', onKey, true);
     let raf = 0;
     let before: Set<number> | null = null;
@@ -90,6 +92,7 @@ function ControlSettings() {
     return () => {
       removeEventListener('keydown', onKey, true);
       cancelAnimationFrame(raf);
+      setTimeout(() => holdNav(false)); // after the press that ended it
     };
   }, [waiting, device, keyboard]);
 

@@ -8,6 +8,8 @@ export class Controls {
   private readonly held = new Set<string>();
   private readonly online: boolean;
   private blocked = false;
+  /** the gamepad button that closed a menu is not the game's: wait until none is pressed */
+  private release = true;
   private readonly down = (e: KeyboardEvent) => {
     if (this.blocked || !this.bound(e.code)) return;
     e.preventDefault();
@@ -36,6 +38,7 @@ export class Controls {
   /** While a menu is open its keys are not the game's. */
   block(on: boolean): void {
     this.blocked = on;
+    this.release = true;
     this.held.clear();
   }
 
@@ -53,6 +56,8 @@ export class Controls {
   /** The pad words now, as Game.step takes them: pads 1-5 (5 unused), players 5-8. */
   read(): number[] {
     if (this.blocked) return [0, 0, 0, 0, 0, 0, 0, 0, 0];
-    return padWords(getSettings(), this.held, connectedGamepads(), this.online);
+    const gps = connectedGamepads();
+    if (this.release) this.release = gps.some((g) => g.buttons.some((b) => b.pressed));
+    return padWords(getSettings(), this.held, this.release ? [] : gps, this.online);
   }
 }

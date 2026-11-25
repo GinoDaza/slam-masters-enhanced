@@ -92,8 +92,10 @@ different times through a simulated relay. A session has up to eight slots: pads
 players 5-8 of 3 vs 3 / 4 vs 4 (`Machine.padsx`).
 
 In the browser (`apps/web`), a room is a name on the server: the peer that joined first is
-the host, picks the team size, the input delay and starts; its `start` message fixes the
-seats for everyone. A seat is a team and a place (`rules/src/seats.ts`): players are numbered
+the host: it picks the mode, the team size and the input delay (by default from the pings,
+`autoDelay`) and starts; its `start` message fixes the seats for everyone. The room stays
+connected during its matches. When a player goes back to the lobby or leaves, the match ends
+for all; the next one starts once everybody is back, so no input of the old one can reach it. A seat is a team and a place (`rules/src/seats.ts`): players are numbered
 team by team (P1-P3 against P4-P6 in 3 VS 3), and each seat is a pad (team 1: pads 1, 2 and
 players 5, 7; team 2: pads 3, 4 and players 6, 8, since the multitap's Team Battle Royal puts
 pads 1 and 2 together), so empty seats are the CPU and two friends can sit on opposite teams.
@@ -127,6 +129,10 @@ the window with CSS zoom, so they fit without scrolling on 16:9 and 16:10; text 
 never under 16 px, at that size. The game is alone on a black
 screen, filling the window or at whole pixels. Esc or the corner button opens the menu: a local
 game pauses, an online match goes on without the local controls.
+
+The screens are the modes (`Home.tsx`), the rooms, the lobby, the settings and the game.
+`nav.ts` moves the focus with the arrow keys and gamepads (A presses, B is Esc; in the game
+SELECT opens the menu), so every menu works without a mouse.
 
 The settings (`settings.ts`: key and gamepad layouts, volume, picture) are kept in the browser
 and apply at once. They end in pad words, volume and CSS, so they never reach the game's state.

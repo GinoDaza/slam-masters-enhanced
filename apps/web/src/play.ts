@@ -20,6 +20,8 @@ export interface Online {
   /** wrestlers a team, the lobby's (the Game Mode Select comes up on it) */
   size: number;
   delay: number;
+  /** Ruleset id */
+  rules: string;
 }
 
 export interface Stats {
