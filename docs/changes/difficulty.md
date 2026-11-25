@@ -1,10 +1,10 @@
 # Default difficulty two levels up
 
-The OPTION difficulty starts at 5 of 0-7 instead of 3, in every mode, so the CPU starts at
+The OPTION difficulty starts at 5 of 0-7 instead of 3, in the Enhanced mode, so the CPU starts at
 level 15 instead of 9. The OPTION screen shows the new level and still changes it.
 
 - **Ruleset:** `difficulty` (the level at power-on; the original's is 3, and 3 installs nothing).
-  Classic and the full arena both use 5.
+  Original uses 3, Enhanced 5.
 - **Code:** `rules/src/difficulty.ts`
 - **Tests:** `rules/test/difficulty.test.ts`
 

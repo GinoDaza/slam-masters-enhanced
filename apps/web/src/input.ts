@@ -54,6 +54,11 @@ export class Controls {
     this.keys = pressed ? this.keys | bit : this.keys & ~bit;
   }
 
+  /** How many people the local controls hold now. */
+  players(): number {
+    return Math.max(1, (navigator.getGamepads?.() ?? []).filter(Boolean).length);
+  }
+
   /** The pad words now, as Game.step takes them: pads 1-5 (5 unused), players 5-8. */
   read(): number[] {
     const pads = [this.keys, 0, 0, 0, 0, 0, 0, 0, 0];

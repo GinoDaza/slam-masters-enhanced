@@ -21,7 +21,7 @@ tools/           compare-frames.ts / compare-video.ts (game vs emulator), disasm
   also models the CPU I/O the game uses: multiply / divide, the WRAM port, DMA, and joypads
   (auto-read and serial), with a multitap in port 2 (`Machine.multitap`, snes9x MP5: pads 2-5,
   IOBIT picks the pair; checked to the clock on a four-human Team Battle Royal). The web
-  client always plugs it in, so up to four people play. A video sink records VRAM, CGRAM and OAM writes. The sound unit
+  client plugs it in when the mode or the number of players asks for it (`rules/src/multitap.ts`). A video sink records VRAM, CGRAM and OAM writes. The sound unit
   (`apu/`) is emulated, and the game uploads and runs its own driver on it. All state that a
   rollback restores lives in one buffer, the sound unit's included: `save()` / `load()`,
   `checksum()`.
@@ -33,7 +33,7 @@ tools/           compare-frames.ts / compare-video.ts (game vs emulator), disasm
   runs instead of the translated code. The address may be inside a routine: translated blocks
   end before every override, so execution always reaches it; an address takes one override (a
   second throws). New modes work this way, in `packages/rules/src/overrides.ts` (`installRules`,
-  one install per change), reading the `Ruleset`; classic installs only the default difficulty (`docs/changes/difficulty.md`). `npx tsx tools/disasm.ts <address> [count]` disassembles the ROM to write them.
+  one install per change), reading the `Ruleset`; the original (`classic`) installs none. `npx tsx tools/disasm.ts <address> [count]` disassembles the ROM to write them.
   `Runner.split` ends blocks at an address without replacing code and `Runner.original` runs
   the original code up to the next block end, so an override can wrap one original instruction.
 - **Determinism**: integers only; no clocks, randomness or platform APIs in `packages/core`

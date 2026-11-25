@@ -1,6 +1,6 @@
 /**
  * The overrides a Ruleset needs (Runner.override, docs/architecture.md), one install per change
- * to the original (docs/changes/). Classic installs only the default difficulty (difficulty.md).
+ * to the original (docs/changes/). The original (classic) installs none.
  *
  * Everything but the Game Mode Select builds on the full arena (singlesArena): the wide and
  * full-height picture, singles and menus in it, 3 vs 3 and 4 vs 4.

@@ -1,14 +1,15 @@
 import type { Ruleset } from './ruleset.ts';
 
-/** The original game, but two levels harder by default (difficulty.md). */
+/** The original game: no overrides at all. */
 export const classicRules: Ruleset = {
   id: 'classic',
-  label: 'Classic',
+  label: 'Original',
   singlesArena: false,
   screenWidth: 256,
   fullHeight: false,
   wideSingles: false,
   modeMenu: false,
   wideMenus: false,
-  difficulty: 5,
+  difficulty: 3,
+  multitap: 'players',
 };

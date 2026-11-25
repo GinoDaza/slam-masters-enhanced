@@ -4,7 +4,7 @@
  * which may re-simulate frames (the renderer and the sound are detached meanwhile).
  */
 import { Game, HEIGHT, Netplay, Renderer, RomImage, Sound } from '@ssm/core';
-import { installRules, presetTeamSize, type Ruleset } from '@ssm/rules';
+import { installRules, plugMultitap, presetTeamSize, type Ruleset } from '@ssm/rules';
 import { Speaker } from './audio.ts';
 import { Controls } from './input.ts';
 import type { Room } from './room.ts';
@@ -46,9 +46,9 @@ export function play(canvas: HTMLCanvasElement, rom: Uint8Array, rules: Ruleset,
   sound.attach();
   speaker.start().catch((e: unknown) => console.warn('no sound:', e));
   game.powerOn();
-  // a multitap in port 2, as on the console: pads 3 and 4 play when a third or fourth player
-  // is there (online slots 3-4, more gamepads); pads nobody holds read 0
-  game.m.multitap = true;
+  // the multitap, found by the game at power-on: pads 3 and 4 play with it. Locally the
+  // gamepads connected now count (they show up after their first button press)
+  game.m.multitap = plugMultitap(rules, online?.size ?? 1, controls.players());
   if (online && rules.modeMenu) presetTeamSize(game.m, online.size);
 
   let net: Netplay | null = null;

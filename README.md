@@ -1,4 +1,4 @@
-# Slam Masters Online
+# Slam Masters Enhanced
 
 **Saturday Night Slam Masters** (Muscle Bomber in Japan; SNES, Capcom, 1994), playable online with friends, plus modes
 the original never had: 2 vs 2 in the full arena with ring-out, 3 vs 3 and 4 vs 4.
@@ -55,3 +55,5 @@ The server prints its addresses. Friends on the same LAN or VPN (Radmin VPN work
 
 See `docs/architecture.md` for how it works and `docs/changes/` for each change to the
 original game.
+
+A fan project, not affiliated with or endorsed by Capcom.

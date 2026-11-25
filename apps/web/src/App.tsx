@@ -138,7 +138,7 @@ function Menu({ rules, setRules, onLocal, onJoin }: RulesProps & { onLocal: () =
   };
   return (
     <section className="panel">
-      <h1>Saturday Night Slam Masters</h1>
+      <h1>Slam Masters Enhanced</h1>
       <div className="row">
         <button onClick={onLocal}>Local game</button>
         <RulesPicker rules={rules} setRules={setRules} />

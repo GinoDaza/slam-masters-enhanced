@@ -32,15 +32,12 @@ const levels = (g: Game) => {
 };
 
 describe.skipIf(!haveRom())('the default difficulty', () => {
-  it('both modes start two levels up: OPTION 5, CPU level 15', () => {
-    expect(classicRules.difficulty).toBe(5);
-    expect(levels(singles(classicRules))).toEqual([5, 15]);
+  it('Enhanced starts two levels up: OPTION 5, CPU level 15', () => {
     expect(levels(singles(teamArenaRules))).toEqual([5, 15]);
   });
 
-  it("the original's level 3 installs nothing: CPU level 9", () => {
-    const g = singles({ ...classicRules, difficulty: 3 });
-    expect(g.runner.overrides.has(0xc01320)).toBe(false);
+  it("the original's level 3: CPU level 9", () => {
+    const g = singles(classicRules);
     expect(levels(g)).toEqual([3, 9]);
   });
 });

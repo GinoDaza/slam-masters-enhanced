@@ -41,4 +41,9 @@ export interface Ruleset {
    * follows it (3: 9, 5: 15).
    */
   readonly difficulty: number;
+  /**
+   * When the multitap is plugged in port 2 (multitap.ts): 'players', only for a session that
+   * needs pads 3-4, as on the console; 'always', whoever plays.
+   */
+  readonly multitap: 'players' | 'always';
 }
