@@ -21,9 +21,10 @@
  * four 8 x 11 tile boxes (BG3 rows 17-27, one a player in palettes 0-3: 1P orange, 2P blue,
  * 3P yellow, 4P green) get 5P left and 6P right of them, 7P and 8P above those (rows 5-15),
  * in the panels' own palettes; all eight are labelled by seat (seats.ts: team by team, P1-P3
- * against P4-P6 in 3 VS 3) instead of by pad. Their inside is the inside of an original box still waiting for
- * its player (`$1BA6`[pad] = 0; PRESS START, blinking as it does), or, once the player joined
- * (players.ts), of one whose player did (ENTRY ACCEPTED).
+ * against P4-P6 in 3 VS 3) instead of by pad. Their text is the original boxes' own (C0:A185: PRESS
+ * START, HURRY UP! at the end of the count, ENTRY ACCEPTED once the player joined, players.ts),
+ * drawn from the ROM: with four humans no original box waits. On the continue screen, which
+ * has the same boxes, it is copied from an original box.
  */
 import { HUDX_COLS, HUDX_ROWS, MARGIN_SPRITES, MARGIN_WORDS, Margin, type Machine, type Runner } from '@ssm/core';
 import { chosenTeamSize, panelsBuilt } from './menu.ts';
@@ -347,12 +348,44 @@ const EXTRA_COLOURS = [
   [0x7fff, 0x5ad6], // 8P white
 ] as const;
 const OUTLINE = 0x3882;
+/** HURRY UP! blinks: every other 8 frames in palette 4 + pad (the text's attribute bit 10) */
+const BLINK = 0x10;
+/** its colours for the extra players: the original's, 8P (white already) grey */
+const BLINK_FROM = 2 * 4 * 4;
+const GREY = [0x4210, 0x2108] as const;
+/** the boxes' texts (C03363, pointers by 2 x n): records row, attribute, six letters; FF ends */
+const BOX_TEXTS = 0xc0a185;
+const TEXT_PRESS = 0;
+const TEXT_ACCEPTED = 1;
+const TEXT_HURRY = 3;
+const TEXT_HURRY_BLINK = 4;
+const LETTERS = 6;
+/** the letters' tiles: 300 + the code (the top half), + 1 the bottom one; priority */
+const LETTER = 0x2300;
+const COUNT = 0x1b92;
+const ENTRY_STATE_56 = 4;
 
 function panelPut(c: Machine, panel: number, row: number, col: number, v: number): void {
   if (row < 0 || row >= HUDX_ROWS || col < 0 || col >= HUDX_COLS) return;
   const a = 2 * ((panel * HUDX_ROWS + row) * HUDX_COLS + col);
   c.hudxMap[a] = v & 0xff;
   c.hudxMap[a + 1] = v >> 8;
+}
+
+/** Text `n` of the boxes: each letter's two tiles, by box row and column. */
+function boxText(c: Machine, n: number, put: (row: number, col: number, v: number) => void): void {
+  const p = BOX_TEXTS + 2 * n;
+  let at = 0xc00000 | c.rom.u8(p) | (c.rom.u8(p + 1) << 8);
+  for (; c.rom.u8(at) < 0x80; at += 2 + LETTERS) {
+    const row = c.rom.u8(at) & 15;
+    const attr = (c.rom.u8(at + 1) & BLINK) << 8;
+    for (let k = 0; k < LETTERS; k++) {
+      const t = c.rom.u8(at + 2 + k);
+      if (!t) continue;
+      put(row, 1 + k, LETTER | attr | t);
+      put(row + 1, 1 + k, LETTER | attr | (t + 1));
+    }
+  }
 }
 
 /** The boxes of the extra players 5P .. 4 + n; every box labelled with its seat's number. */
@@ -397,14 +430,28 @@ function extraBoxes(c: Machine, n: number): void {
     }
     put(0, 3, (DIGIT0 + playerNumber(size, 4 + e)) | pal);
     put(0, 4, LETTER_P | pal);
+    const blink = 2 * 4 * (4 + e);
+    for (let i = 0; i < 8; i++) c.hudxPalettes[blink + i] = c.cgram[BLINK_FROM + i]!;
+    if (e === 3)
+      for (const [i, v] of [[1, GREY[0]], [3, GREY[1]]] as const) {
+        c.hudxPalettes[blink + 2 * i] = v & 0xff;
+        c.hudxPalettes[blink + 2 * i + 1] = v >> 8;
+      }
+    const entry = w[0x56] === ENTRY_STATE_56;
+    if (entry) {
+      const text = (n: number) => boxText(c, n, (row, col, v) => put(row, col, v | pal));
+      text(joined(c, e) ? TEXT_ACCEPTED : TEXT_PRESS);
+      // C03309: the last seconds of the count
+      if (!joined(c, e) && w[COUNT]! < 4) text(w[FRAMES]! & 8 ? TEXT_HURRY_BLINK : TEXT_HURRY);
+    }
     const inside = joined(c, e) ? entered : waiting;
     for (let row = 1; row < BOX_ROWS - 1; row++) {
       put(row, 0, SIDE | pal);
       put(row, BOX_COLS - 1, SIDE | H_FLIP | pal);
-      if (inside < 0) continue;
+      if (entry || inside < 0) continue;
       for (let col = 1; col < BOX_COLS - 1; col++) {
         const v = bg3(BOX_TOP + row, BOX_COLS * inside + col);
-        if (v & 0x3ff) put(row, col, (v & ~0x1c00) | pal);
+        if (v & 0x3ff) put(row, col, (v & ~0x0c00) | pal);
       }
     }
   }

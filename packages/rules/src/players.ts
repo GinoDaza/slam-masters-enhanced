@@ -6,7 +6,8 @@
  *
  * - Joining: on the Team Battle Royal entry (ENTER THE MATCH!, its countdown C031A2), a new
  *   press of START joins the player (menus.ts draws the boxes). The entry is shown for a
- *   3 VS 3 / 4 VS 4 even with four humans (C03197: the original skips it then). Who joined
+ *   3 VS 3 / 4 VS 4 even with four humans (C03197: the original skips it then), and ends early
+ *   (C03215, 8 frames after the fourth human joins) only once players 5-8 are in too. Who joined
  *   stays until the next Game Mode Select.
  * - Picking: on the team player select a joined player picks their extra's character in the
  *   margin (menus.ts shows "5P" and the cursor's name): left / right move the cursor over the
@@ -202,6 +203,21 @@ export function installPlayers(r: Runner, size: (c: Machine) => number): void {
     if (c.wram[0x1ba4] !== 4 || size(c) <= 2) return r.original(c, 0xc03197);
     c.tick(4 * c.fast + 4);
     return 0xc0319e;
+  });
+  // C03215 LDA $1BA4 / CMP #$04: with four humans in, the count runs on for players 5-8
+  // (C0322A); when all are in, the original's 8 frames ($5D), then the end
+  r.override(0xc03215, (c) => {
+    const n = 2 * (size(c) - 2);
+    const w = c.wram;
+    if (n <= 0 || w[0x1ba4] !== 4) return r.original(c, 0xc03215);
+    c.tick(12 * c.fast);
+    for (let e = 0; e < n; e++)
+      if (!joined(c, e)) {
+        w[0x76] = 4;
+        w[0x5d] = 8;
+        return 0xc0322a;
+      }
+    return r.original(c, 0xc03215);
   });
   // C038BA LDA $1B85 / ORA $1B9A / BNE C038C5: the selection also waits for players 5-8
   r.override(0xc038ba, (c) => {
