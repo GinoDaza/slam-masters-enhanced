@@ -6,9 +6,10 @@ VS 4). The extra wrestlers are played by players 5-8 or by the CPU.
 - **Ruleset:** `singlesArena` with `modeMenu` (the team size is the menu's choice). Classic
   leaves the original unchanged.
 - **Code:** `rules/src/big-teams.ts` (the install), `teams.ts`, `players.ts`, `select.ts`, `portraits.ts`,
-  `slots.ts`, `referee.ts`, `sprites.ts`, `oamext.ts`, `hud.ts`, `seats.ts`
+  `slots.ts`, `referee.ts`, `sprites.ts`, `oamext.ts`, `hud.ts`, `seats.ts`,
+  `numbers.ts`
 - **Tests:** `rules/test/big-teams.test.ts`, `players.test.ts`, `select.test.ts`,
-  `seats.test.ts`
+  `seats.test.ts`, `entry.test.ts`
 
 ## How
 
@@ -20,12 +21,17 @@ extras are players 5-8's or the CPU's. The team size is set at the match start (
 - Players 5-8 (`players.ts`): their pads are a Machine extension (`Machine.padsx`, Game.step's
   words 5-8, slots 4-7 of a rollback session). Player 5 + e plays extra e (5P and 7P with pad
   1's team). They join with START on the Team Battle Royal entry (shown for 3 VS 3 / 4 VS 4 even
-  with four humans, C03197), pick their extra's character in the player select's margins (left /
+  with four humans, C03197; then it waits for players 5-8 until the count ends,
+  C03215), pick their extra's character in the player select's margins (left /
   right, a confirm button; the selection waits for them, C038BA) and play it: the extra's +77
   (the pad number; 0 = the CPU) is 5-8, and the input gate's read of pad +77 (C110E9, the held
   and new words +91 / +93) takes their pad, with the default button assignment (C0:9E9B, 40 /
   80 / 20: the options set pads 1-4's only). Joining, moving the cursor and picking queue the
   pads 1-4's sounds 04 / 02 / 03 (C028A7, C03A40, C03A5D) (`rules/test/players.test.ts`).
+
+- Numbers (`numbers.ts`): the labels show the seats' numbers, team by team as in the lobby (pad 3
+  is 4P in 3 VS 3, 5P in 4 VS 4): the player select's markers (their digit redrawn in VRAM), the
+  strings of the VS and result screens (C0086A, C0081F) and the HUD's tags (C05FF6).
 
 - Picking the extras (`select.ts`): on the team player select a human whose team has a CPU
   partner picks it last: the first confirmations (C03A71, which ends the partner pick) go to the

@@ -5,7 +5,8 @@
  * by name in the right margin; side 0 (pads 1 and 2, no partner) has its extras picked by
  * pad 1 in the left margin once its own wrestler is in (players.ts); nobody shares a
  * character. Pad 3's marker stays on its picks, and the four portraits show in the margins;
- * the VS screen shows all four extras.
+ * the VS screen shows all four extras. Pad 3 is P5 (seats.ts) on its marker, on the VS screen and
+ * in the HUD (numbers.ts).
  */
 import { describe, expect, it } from 'vitest';
 import { Game, HUDX_COLS, HUDX_ROWS, padsFromScript } from '@ssm/core';
@@ -64,6 +65,13 @@ describe.skipIf(!haveRom())('the extras picked on the player select', () => {
     expect(g.m.wram[0x6280 + 0x06]! & 0x0e).toBe(0);
     const colour = (i: number) => g.m.cgram[2 * i]! | (g.m.cgram[2 * i + 1]! << 8);
     const base = g.m.wram[0x6280 + 0x12]! | (g.m.wram[0x6280 + 0x13]! << 8);
+    // the digit of pad 3's own marker (sprite name EA, rows 0-6, columns 4-7; colour 4) is a 5
+    const t = ((g.m.ioreg[0x01]! & 7) << 14) + 32 * 0xea;
+    const row = (y: number) => {
+      const [a, b, c, d] = [0, 1, 16, 17].map((o) => g.m.vram[t + 2 * y + o]!);
+      return [3, 2, 1, 0].map((x) => (((a! >> x) & 1) | (((b! >> x) & 1) << 1) | (((c! >> x) & 1) << 2) | (((d! >> x) & 1) << 3)) === 4 ? '#' : '.').join('');
+    };
+    expect([0, 1, 2, 3, 4, 5, 6].map(row)).toEqual(['####', '#...', '###.', '...#', '...#', '#..#', '.##.']);
     let blinked = false;
     for (let k = 0; k < 40; k++) {
       g.step([0, 0, 0, 0]);
@@ -110,9 +118,18 @@ describe.skipIf(!haveRom())('the extras picked on the player select', () => {
     const bg2 = (g.m.ioreg[0x08]! & 0xfc) << 9;
     const entry = (row: number, col: number) => g.m.vram[bg2 + ((col & 32) << 6) + 2 * (32 * row + (col & 31))];
     expect([entry(10, 63), entry(10, 32), entry(25, 63), entry(25, 32)]).toEqual([entry(10, 0), entry(10, 31), entry(25, 0), entry(25, 31)]);
+    // BG3 words, row by row: does "nP" show?
+    const bg3 = (digit: number, p: number) => {
+      const map = (g.m.ioreg[0x09]! & 0xfc) << 9;
+      const word = (i: number) => (g.m.vram[map + 2 * i]! | (g.m.vram[map + 2 * i + 1]! << 8)) & 0x3ff;
+      return Array.from({ length: 32 * 28 - 1 }, (_, i) => i).some((i) => word(i) === digit && word(i + 1) === p);
+    };
+    const FONT_P = 0x70; // the 8 x 16 font: digit d is 01 + 2d
+    expect([bg3(0x0b, FONT_P), bg3(0x07, FONT_P), bg3(0x05, FONT_P)], '5P, not 3P; 2P stays').toEqual([true, false, true]);
     const vs = vsCharacters(g.m);
     for (let k = 0; k < 2400 && state() !== 0x1a; k++) g.step([0, 0, 0, 0]);
     for (let k = 0; k < 10; k++) g.step([0, 0, 0, 0]);
+    expect([bg3(0x35, 0x50), bg3(0x33, 0x50), bg3(0x32, 0x50)], 'the HUD: 5P, not 3P; 2P').toEqual([true, false, true]);
     expect([w[EXTRA[1] + 0x01], w[EXTRA[3] + 0x01]]).toEqual(side1.map((p) => cursorCharacter(g.m, p)));
     expect([w[EXTRA[0] + 0x01], w[EXTRA[2] + 0x01]]).toEqual(side0.map((p) => cursorCharacter(g.m, p)));
     expect(EXTRA.map((p) => w[p + 0x01])).toEqual(vs);

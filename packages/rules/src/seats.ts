@@ -7,8 +7,7 @@
  * pad 1 against pad 2.
  *
  * The lobby seats people by these, and the team entry screen labels its boxes with these
- * numbers (menus.ts). The rest of the game (the player select's marks, the HUD) keeps the
- * pads' own numbers.
+ * numbers (menus.ts); so do the rest of the game's labels (numbers.ts).
  */
 import type { Machine } from '@ssm/core';
 import { RULES_BYTES } from './slots.ts';

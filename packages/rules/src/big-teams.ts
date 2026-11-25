@@ -4,6 +4,7 @@
  */
 import type { Game } from '@ssm/core';
 import { installHud } from './hud.ts';
+import { installNumbers } from './numbers.ts';
 import { installOamExt } from './oamext.ts';
 import { installPlayers } from './players.ts';
 import { installReferee } from './referee.ts';
@@ -19,4 +20,5 @@ export function installBigTeams(game: Game): void {
   installReferee(r);
   installOamExt(r);
   installHud(r, extraChars);
+  installNumbers(r, chosenSize);
 }

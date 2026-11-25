@@ -4,10 +4,6 @@ Bugs that are understood but not fixed yet, with their cause and the planned fix
 
 ## 3 vs 3 and 4 vs 4
 
-- **Player numbers differ between the entry screen and the rest of the game.** The lobby and
-  the team entry number players team by team (`seats.ts`: P1-P3 against P4-P6 in 3 VS 3); the
-  player select's marks, the HUD and the result screens keep the pads' numbers (pad 3 is 3P
-  there, P4 in the lobby of a 3 VS 3).
 - **The time-over count-up on the result screen shows the four base wrestlers' bars only**
   (C05B27 counts first members, then second). The judge adds the extras' bars, so the result is
   right; the count does not show them.

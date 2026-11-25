@@ -30,6 +30,7 @@ import { HUDX_COLS, HUDX_ROWS, MARGIN_SPRITES, MARGIN_WORDS, Margin, type Machin
 import { chosenTeamSize, panelsBuilt } from './menu.ts';
 import { keepPortraitFlags, vsCharacters } from './portraits.ts';
 import { cursorCharacter, picks } from './select.ts';
+import { markNumbers } from './numbers.ts';
 import { joined, playerCursor } from './players.ts';
 import { playerNumber } from './seats.ts';
 
@@ -125,6 +126,7 @@ export function menuPicture(c: Machine, margin: number): void {
   if (screenOf(c) === Screen.ENTRY && size > 2) extraBoxes(c, 2 * (size - 2));
   if (screenOf(c) === Screen.TEAM_SELECT && size > 2) {
     pickedNames(c, size - 2);
+    markNumbers(c, size);
     keepPortraitFlags(c);
   }
   if (screenOf(c) === Screen.VS) {
