@@ -25,6 +25,7 @@
 import type { Machine, Runner } from '@ssm/core';
 import { chosenTeamSize } from './menu.ts';
 import { cursorCharacter, picks } from './select.ts';
+import { resetArrows } from './arrows.ts';
 import { joined } from './players.ts';
 import { BASE, EXT, EXTRA, bigTeams, extras, inPlay, isExtra, nextSlot, pages, prevSlot, rd16, setTeamSize, sideOf, wr16 } from './slots.ts';
 
@@ -138,6 +139,7 @@ function matchStart(c: Machine): void {
   const size = chosenSize(c);
   setTeamSize(c, size);
   if (size <= 2) return;
+  resetArrows(c);
   extraChars(c).forEach((ch, e) => (c.wram[EXTRA[e]! + 0x01] = ch));
   c.wram.fill(0, EXT.TILE_QUEUE, EXT.TILE_QUEUE + 6 * 4); // no frame waits (sprites.ts)
 }

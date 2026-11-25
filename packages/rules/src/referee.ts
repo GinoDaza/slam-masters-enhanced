@@ -250,17 +250,14 @@ function lifeSums(c: Machine): void {
 
 /**
  * C10D3B (JSL) for big teams: the time-over judge on the totals the result screen counted up
- * (C05B27 counts the four base wrestlers' bars), with the extras' bars (C0:9793[life]) added;
- * the losers are their whole team.
+ * (every member's bar, count.ts); the losers are their whole team.
  */
 function judge(c: Machine): void {
   const w = c.wram;
   const all = pages(c);
   const sideA = sideOf(c, 0x0800);
-  const bars = (a: boolean) =>
-    all.filter((p) => p >= 0x1000 && (sideOf(c, p) === sideA) === a).reduce((s, p) => s + c.rom.u8(0xc09793 + w[p + 0x79]!), 0);
-  const ta = (w[0x1a6b]! | (w[0x1a6c]! << 8)) + bars(true);
-  const tb = (w[0x1a6d]! | (w[0x1a6e]! << 8)) + bars(false);
+  const ta = w[0x1a6b]! | (w[0x1a6c]! << 8);
+  const tb = w[0x1a6d]! | (w[0x1a6e]! << 8);
   if (ta === tb) {
     if (ta !== 0 && !w[0x1acc]) {
       w[0x1acc] = (w[0x1acc]! + 1) & 0xff;

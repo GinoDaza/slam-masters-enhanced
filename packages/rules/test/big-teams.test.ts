@@ -8,6 +8,7 @@
 import { beforeAll, describe, expect, it } from 'vitest';
 import { Game, OBJX_BANK2, Renderer, Rollback, checksum, padsFromScript } from '@ssm/core';
 import { installRules, teamArenaRules } from '../src/index.ts';
+import { ARROWS } from '../src/arrows.ts';
 import { EXTRA, pages, teamSize } from '../src/slots.ts';
 import { cursorCharacter, picks } from '../src/select.ts';
 import { haveRom, loadRom } from '../../core/test/fixture.ts';
@@ -196,6 +197,48 @@ describe.skipIf(!haveRom())('3 vs 3 and 4 vs 4', () => {
     }
     expect(state.toString(16), "pad 1's team (A) won").toBe('20');
     for (const p of pages(g.m)) expect(w[p]!, p.toString(16)).toBe(sideA(p) ? 0x80 : 1);
+  });
+
+  it('3 VS 3: the time-over count takes the extras too', () => {
+    const g = fight(3);
+    const w = g.m.wram;
+    pages(g.m).forEach((p, i) => (w[p + 0x79] = [200, 100, 180, 90, 255, 60][i]!));
+    w[0x1a71] = 0;
+    w[0x1a70] = 2;
+    for (let f = 0; f < 1200 && w[0x56] !== 0x1e; f++) g.step([0, 0, 0, 0]);
+    expect(w[0x56]).toBe(0x1e);
+    const side = w[0x800 + 0x17d];
+    const sum = (a: boolean) => pages(g.m).reduce((s, p) => ((w[p + 0x17d] === side) === a ? s + g.m.rom.u8(0xc09793 + w[p + 0x79]!) : s), 0);
+    const total = (at: number) => w[at]! | (w[at + 1]! << 8);
+    expect([total(0x1a6b), total(0x1a6d)]).toEqual([sum(true), sum(false)]);
+  });
+
+  it('4 VS 4: an extra off the screen gets an arrow from bank 2, none on it', () => {
+    const g = fight(4);
+    const w = g.m.wram;
+    const all = pages(g.m);
+    const run = (x: (p: number) => number, camera: number) => {
+      for (let f = 0; f < 30; f++) {
+        g.step([0, 0, 0, 0]);
+        for (const p of all) {
+          w[p + 0x13] = x(p) & 0xff;
+          w[p + 0x14] = x(p) >> 8;
+        }
+        w[0x1a84] = camera & 0xff;
+        w[0x1a85] = camera >> 8;
+      }
+    };
+    const arrows = () => EXTRA.map((_, e) => w[ARROWS + 0x40 * e]);
+    run((p) => (p === EXTRA[1] ? 0x220 : 0x40), 0x50);
+    expect(arrows()).toEqual([0, 1, 0, 0]);
+    // its pieces are drawn: bank 2, sprite palette 1, at the right edge
+    const drawn = Array.from({ length: 256 }, (_, i) => i).some((i) => {
+      const oam = i < 128 ? g.m.oam : g.m.oamExt;
+      return (g.m.oamx[i]! & 4) !== 0 && ((oam[4 * (i & 127) + 3]! >> 1) & 7) === 1 && g.m.oamWideX[i]! > 0xd0 + 72;
+    });
+    expect(drawn).toBe(true);
+    run(() => 0x100, 0x90);
+    expect(arrows()).toEqual([0, 0, 0, 0]);
   });
 
   it('4 VS 4: a rollback restores the extras, the second OAM and the HUD panels', () => {

@@ -3,6 +3,8 @@
  * docs/changes/big-teams.md).
  */
 import type { Game } from '@ssm/core';
+import { installArrows } from './arrows.ts';
+import { installCount } from './count.ts';
 import { installHud } from './hud.ts';
 import { installNumbers } from './numbers.ts';
 import { installOamExt } from './oamext.ts';
@@ -20,5 +22,7 @@ export function installBigTeams(game: Game): void {
   installReferee(r);
   installOamExt(r);
   installHud(r, extraChars);
+  installArrows(r);
+  installCount(r);
   installNumbers(r, chosenSize);
 }

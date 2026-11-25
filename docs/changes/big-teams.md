@@ -7,7 +7,7 @@ VS 4). The extra wrestlers are played by players 5-8 or by the CPU.
   leaves the original unchanged.
 - **Code:** `rules/src/big-teams.ts` (the install), `teams.ts`, `players.ts`, `select.ts`, `portraits.ts`,
   `slots.ts`, `referee.ts`, `sprites.ts`, `oamext.ts`, `hud.ts`, `seats.ts`,
-  `numbers.ts`
+  `numbers.ts`, `arrows.ts`, `count.ts`
 - **Tests:** `rules/test/big-teams.test.ts`, `players.test.ts`, `select.test.ts`,
   `seats.test.ts`, `entry.test.ts`
 
@@ -31,7 +31,8 @@ extras are players 5-8's or the CPU's. The team size is set at the match start (
 
 - Numbers (`numbers.ts`): the labels show the seats' numbers, team by team as in the lobby (pad 3
   is 4P in 3 VS 3, 5P in 4 VS 4): the player select's markers (their digit redrawn in VRAM), the
-  strings of the VS and result screens (C0086A, C0081F) and the HUD's tags (C05FF6).
+  strings of the VS and result screens (C0086A, C0081F), the HUD's tags (C05FF6) and the
+  off-screen arrows.
 
 - Picking the extras (`select.ts`): on the team player select a human whose team has a CPU
   partner picks it last: the first confirmations (C03A71, which ends the partner pick) go to the
@@ -86,7 +87,8 @@ extras are players 5-8's or the CPU's. The team size is set at the match start (
   (counts, falls, releases, holds, members left, round end, no contest, time over). Every
   pin has its own counter, so three or more are counted at once (`big-teams.test.ts`): the
   original's two, which the pin-count marks read, then six more in ext WRAM, without marks. The time-over sums (C10E6E) and the
-  judge on the counted bars (C10D3B) take every member; the judge of C11BD3 too.
+  judge on the counted bars (C10D3B) take every member; the judge of C11BD3 too. The count on the
+  screen (`count.ts`, C059B6) goes on with the extras, pair by pair, its bars in proportion.
 - Graphics (`sprites.ts`): each extra mirrors a base slot (its tile base +05 and palette), in a
   third sprite bank (Machine extension: `objx` bank 2, VMAIN bit 5, `oamx` bit 2, its own
   palettes in `cgramx`). Its frame requests are taken when the IRQ builds the DMA list (C00971,
@@ -100,6 +102,8 @@ extras are players 5-8's or the CPU's. The team size is set at the match start (
   piece in the first OAM's entry 127, which the pass tail (C1F6A6) always overwrites with its
   hidden marker, moves to the second OAM's first entry, so no wrestler loses a piece at the
   boundary.
+- Off-screen arrows (`arrows.ts`): the pool has no room for the extras' 4A objects, so theirs are
+  in ext WRAM, with tiles in bank 2; players 5-8 and pads 3-4 get their seats' numbers.
 - HUD (`hud.ts`): the team HUD has four blocks across the SNES screen; the extras' (face, name,
   life bar, as C06185 / C0607D draw them) are in HUD panels beside it, in the wide picture's
   margins (Machine extension `hudx`: BG3 map entries and 64 tiles of its own, which hold the

@@ -28,6 +28,7 @@
  *   copied when the IRQ uploads it, C00282), but palette 7 holds the items' colors from that list.
  */
 import { OBJX_BANK2, rtl, type Machine, type Runner } from '@ssm/core';
+import { isExtraArrow } from './arrows.ts';
 import { oamIndex, oamPassStart } from './oamext.ts';
 import { EXT, EXTRA, bigTeams, extras, isExtra, rd16, setTeamSize, wr16 } from './slots.ts';
 import { isLeftRope } from './ropes.ts';
@@ -202,8 +203,8 @@ export function installSprites(r: Runner, menus?: (c: Machine) => void): void {
       const d = c.x;
       let flags = !isTeam(c)
         ? 0
-        : isExtra(d)
-          ? 4 // an extra wrestler or its companion piece (+1C9)
+        : isExtra(d) || (bigTeams(c) && isExtraArrow(d))
+          ? 4 // an extra wrestler, its companion piece (+1C9) or its arrow
           : (d >= 0x1000 && d < 0x1200) || (d >= 0x1200 && d < 0x1a00 && SINGLES_GRAPHICS.has(c.wram[d + 1]!))
             ? 1 | MATH
             : 0;
