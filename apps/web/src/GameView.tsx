@@ -18,6 +18,7 @@ export function GameView({ rom, online, rules, onBack }: { rom: Uint8Array; onli
   const [menu, setMenu] = useState<'closed' | 'menu' | 'settings'>('closed');
   const [run, setRun] = useState(0); // a restart is a new run
   const mouse = useMouseMoving();
+  const [waiting, setWaiting] = useState('');
   /** who ended the online match, or '' */
   const [ended, setEnded] = useState('');
   const open = menu !== 'closed' || !!ended;
@@ -27,6 +28,11 @@ export function GameView({ rom, online, rules, onBack }: { rom: Uint8Array; onli
     const p = play(canvas.current, rom, rules, online, (s) => s.desync >= 0 && setNotice(`Desync at frame ${s.desync}.`));
     playing.current = p;
     if (online) {
+      const room = online.room;
+      room.onChange = () => {
+        const away = room.members.filter((m) => m.away && m.playing).map((m) => m.name);
+        setWaiting(room.reconnecting ? 'Reconnecting…' : away.length ? `Waiting for ${away.join(', ')} to reconnect…` : '');
+      };
       // the match cannot go on without one of its players
       online.room.onLeave = (m) => setEnded(`${m.name} left the match.`);
       online.room.onClose = () => setEnded('Lost the connection to the server.');
@@ -35,7 +41,7 @@ export function GameView({ rom, online, rules, onBack }: { rom: Uint8Array; onli
     return () => {
       playing.current = null;
       p.stop();
-      if (online) online.room.onLeave = online.room.onClose = () => {};
+      if (online) online.room.onLeave = online.room.onClose = online.room.onChange = () => {};
     };
   }, [rom, online, rules, run]);
 
@@ -60,7 +66,8 @@ export function GameView({ rom, online, rules, onBack }: { rom: Uint8Array; onli
     <div className={`game ${mouse || open ? '' : 'idle'}`}>
       <canvas ref={canvas} width={rules.screenWidth} height={HEIGHT} style={size} />
       {settings.scanlines && <div className="scanlines" style={{ ...size, backgroundSize: `100% ${scale}px` }} />}
-      {notice && <p className="notice">{notice} Esc for the menu.</p>}
+      {waiting && !ended && <p className="notice" role="status">{waiting}</p>}
+      {!waiting && notice && <p className="notice">{notice} Esc for the menu.</p>}
       {!open && mouse && <button className="corner" onClick={(e) => (e.currentTarget.blur(), setMenu('menu'))}>Menu</button>}
       {open && (
         <div className="overlay">

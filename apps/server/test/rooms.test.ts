@@ -11,7 +11,7 @@ const open: WebSocket[] = [];
 
 beforeEach(async () => {
   server = createServer();
-  list = attachRooms(server);
+  list = attachRooms(server, 150);
   await new Promise<void>((done) => server.listen(0, '127.0.0.1', done));
 });
 afterEach(() => {
@@ -28,7 +28,7 @@ interface Client {
   leave(): void;
 }
 
-async function join(name: string): Promise<Client> {
+async function join(name: string, hello: object = { t: 'join', room: 'ring', name }): Promise<Client> {
   const ws = new WebSocket(`ws://127.0.0.1:${(server.address() as AddressInfo).port}/ws`);
   open.push(ws);
   const got: Record<string, unknown>[] = [];
@@ -41,7 +41,7 @@ async function join(name: string): Promise<Client> {
   await new Promise((done) => ws.on('open', done));
   const say = (m: unknown) => ws.send(JSON.stringify(m));
   const sync = () => new Promise<void>((done) => (waits.push(done), say({ t: 'ping', id: 0 })));
-  say({ t: 'join', room: 'ring', name });
+  say(hello);
   await sync();
   return { id: got[0]!['peer'] as number, got, say, sync, leave: () => ws.terminate() };
 }
@@ -57,8 +57,8 @@ it('a match starts, its players come back, and a newcomer sees who plays', async
   expect(list()).toEqual([{ code: 'RING', players: ['A', 'B'], playing: true, rules: 'team-arena', size: 3 }]);
   const c = await join('C');
   expect(c.got[0]!['peers']).toEqual([
-    { peer: a.id, name: 'A', ready: false, playing: true },
-    { peer: b.id, name: 'B', ready: true, playing: true },
+    { peer: a.id, name: 'A', ready: false, playing: true, away: false },
+    { peer: b.id, name: 'B', ready: true, playing: true, away: false },
   ]);
   a.say({ t: 'back' });
   await a.sync();
@@ -67,7 +67,7 @@ it('a match starts, its players come back, and a newcomer sees who plays', async
   await b.sync();
   expect(list()[0]!.playing).toBe(false);
   await c.sync();
-  expect(c.got.at(-1)).toEqual({ t: 'state', peer: b.id, ready: false, playing: false });
+  expect(c.got.at(-1)).toEqual({ t: 'state', peer: b.id, ready: false, playing: false, away: false });
 });
 
 it('only the host seats and starts; unknown and server messages are not relayed', async () => {
@@ -95,4 +95,30 @@ it('the next peer hosts when the host leaves', async () => {
   await b.sync();
   await c.sync();
   expect(c.got.some((m) => m['t'] === 'start')).toBe(true);
+});
+
+it('a player who drops in a match takes its place again; too late, it is gone', async () => {
+  const a = await join('A');
+  const b = await join('B');
+  a.say({ t: 'start', players: [{ peer: a.id }, { peer: b.id }] });
+  await a.sync();
+  const token = b.got[0]!['token'];
+  const away = () => a.got.filter((m) => m['t'] === 'state' && m['peer'] === b.id).at(-1)?.['away'];
+  b.leave();
+  while (!away()) await a.sync();
+  const again = await join('B', { t: 'rejoin', room: 'RING', token });
+  expect(again.id).toBe(b.id);
+  expect(again.got[0]).toMatchObject({ t: 'joined', playing: true, peers: [{ peer: a.id, playing: true }] });
+  await a.sync();
+  expect(away()).toBe(false);
+  await new Promise((done) => setTimeout(done, 250)); // the old place's time is over
+  await a.sync();
+  expect(a.got.some((m) => m['t'] === 'peer-leave')).toBe(false);
+
+  again.leave();
+  while (!a.got.some((m) => m['t'] === 'peer-leave')) {
+    await new Promise((done) => setTimeout(done, 20));
+    await a.sync();
+  }
+  expect((await join('B', { t: 'rejoin', room: 'RING', token })).got[0]).toEqual({ t: 'gone' });
 });

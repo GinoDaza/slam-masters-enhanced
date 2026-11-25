@@ -6,6 +6,7 @@
 import { Game, HEIGHT, Netplay, Renderer, RomImage, Sound } from '@ssm/core';
 import { installRules, plugMultitap, presetTeamSize, type Ruleset } from '@ssm/rules';
 import { Speaker } from './audio.ts';
+import { hiddenTicks } from './ticks.ts';
 import { Controls } from './input.ts';
 import type { Room } from './room.ts';
 import { getSettings, onSettings } from './settings.ts';
@@ -87,7 +88,7 @@ export function play(canvas: HTMLCanvasElement, rom: Uint8Array, rules: Ruleset,
   let last = performance.now();
   let acc = 0;
   let statsAt = 0;
-  const loop = (now: number) => {
+  const advance = (now: number) => {
     acc += Math.min(now - last, 100);
     last = now;
     let ran = false;
@@ -104,7 +105,7 @@ export function play(canvas: HTMLCanvasElement, rom: Uint8Array, rules: Ruleset,
       }
       speaker.push(sound.take());
     }
-    if (ran) {
+    if (ran && !document.hidden) {
       renderer.toRgba(image.data);
       ctx.putImageData(image, 0, 0);
     }
@@ -113,8 +114,13 @@ export function play(canvas: HTMLCanvasElement, rom: Uint8Array, rules: Ruleset,
       const s = net.session;
       onStats({ frame: s.frame, rollbacks: s.rollbacks, resimulated: s.resimulated, stalls: net.stalls, skipped: net.skipped, lead: net.lead, desync: net.desync });
     }
+  };
+  const loop = (now: number) => {
+    advance(now);
     raf = requestAnimationFrame(loop);
   };
+  // the other players wait for this one's inputs: a match goes on in a hidden tab
+  const offTicks = online ? hiddenTicks(advance) : () => {};
   raf = requestAnimationFrame(loop);
 
   return {
@@ -125,6 +131,7 @@ export function play(canvas: HTMLCanvasElement, rom: Uint8Array, rules: Ruleset,
     },
     stop() {
       offSettings();
+      offTicks();
       cancelAnimationFrame(raf);
       controls.detach();
       speaker.stop();

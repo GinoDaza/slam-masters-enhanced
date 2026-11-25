@@ -5,6 +5,7 @@
  * teams of `size` seats (1 VS 1 to 4 VS 4), numbered team by team (P1-P3 against P4-P6 in
  * 3 VS 3); each seat is a pad of the game (@ssm/rules seatSlot: pad 1 is the first seat, it
  * drives the menus). Seats may stay empty (the CPU), and who has no seat waits in the lobby. A
+ * player whose connection drops in a match has a while to come back (the server's `rejoin`). A
  * match ends for everybody when one of its players goes back to the lobby or leaves.
  */
 import { rulesById, seatSlot } from '@ssm/rules';
@@ -15,6 +16,8 @@ export interface Member {
   ready: boolean;
   /** in the match */
   playing: boolean;
+  /** its connection dropped in the match; it may come back */
+  away: boolean;
   /** its round trip to the server, ms (-1: not known yet) */
   rtt: number;
 }
@@ -44,8 +47,20 @@ export function autoDelay(rtts: readonly number[]): number {
   return Math.min(4, Math.max(2, 1 + Math.ceil((a + b) / 2 / 33)));
 }
 
+/** how long a dropped player tries to come back, a little less than the server keeps its place */
+const REJOIN_MS = 18_000;
+const RETRY_MS = 1_000;
+/** no answer from the server in this long: the connection is dead */
+const SILENT_MS = 6_000;
+
 export class Room {
-  readonly ws: WebSocket;
+  private ws!: WebSocket;
+  private token = '';
+  private readonly name: string;
+  /** our own connection is down, being retried */
+  reconnecting = false;
+  private lostAt = 0;
+  private heardAt = 0;
   me = -1;
   /** the room's name, as the server keeps it */
   code = '';
@@ -69,30 +84,48 @@ export class Room {
 
   constructor(code: string, name: string, rules: string) {
     this.rules = rules;
+    this.name = name;
+    this.connect(() => ({ t: 'join', room: code, name }));
+    // closing the page is leaving, not a drop
+    addEventListener('pagehide', this.leave);
+  }
+
+  private connect(hello: () => object): void {
     const url = `${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}/ws`;
-    this.ws = new WebSocket(url);
-    this.ws.binaryType = 'arraybuffer';
-    this.ws.onopen = () => {
-      this.ws.send(JSON.stringify({ t: 'join', room: code, name }));
-      this.timer = window.setInterval(() => this.ws.send(JSON.stringify({ t: 'ping', id: performance.now() })), 1000);
-    };
-    this.ws.onclose = () => {
-      clearInterval(this.timer);
-      this.closed = true;
-      this.onClose();
-    };
-    this.ws.onmessage = (e) => {
+    const ws = new WebSocket(url);
+    this.ws = ws;
+    ws.binaryType = 'arraybuffer';
+    this.heardAt = performance.now();
+    clearInterval(this.timer);
+    this.timer = window.setInterval(() => {
+      this.say({ t: 'ping', id: performance.now() });
+      // a close on a dead connection may take minutes to be told: drop it
+      if (performance.now() - this.heardAt > SILENT_MS) this.lost(ws);
+    }, 1000);
+    ws.onopen = () => ws.send(JSON.stringify(hello()));
+    ws.onclose = () => this.lost(ws);
+    ws.onmessage = (e) => {
+      this.heardAt = performance.now();
       if (e.data instanceof ArrayBuffer) return this.onBinary(new Uint8Array(e.data));
       const msg = JSON.parse(String(e.data));
-      if (msg.t === 'joined') {
+      if (msg.t === 'gone') {
+        this.lostAt = -Infinity;
+        this.lost(ws);
+      } else if (msg.t === 'joined') {
+        const before = this.members;
+        this.reconnecting = false;
+        this.token = msg.token;
         this.me = msg.peer;
         this.code = msg.room;
-        this.members = [...msg.peers.map((p: Member) => ({ ...p, rtt: -1 })), { peer: msg.peer, name, ready: false, playing: false, rtt: -1 }].sort((a, b) => a.peer - b.peer);
+        this.members = [...msg.peers.map((p: Member) => ({ ...p, rtt: -1 })), { peer: msg.peer, name: this.name, ready: msg.ready, playing: msg.playing, away: false, rtt: -1 }].sort((a, b) => a.peer - b.peer);
         this.fixSeats();
         if (this.isHost) this.sendSeats(); // the room list shows the choices
         this.onChange();
+        // who left the match while we were away
+        const left = before.find((m) => m.playing && m.peer !== this.me && !this.members.some((x) => x.peer === m.peer && x.playing));
+        if (left) this.onLeave(left);
       } else if (msg.t === 'peer-join') {
-        this.members = [...this.members, { peer: msg.peer, name: msg.name, ready: false, playing: false, rtt: -1 }].sort((a, b) => a.peer - b.peer);
+        this.members = [...this.members, { peer: msg.peer, name: msg.name, ready: false, playing: false, away: false, rtt: -1 }].sort((a, b) => a.peer - b.peer);
         this.fixSeats();
         if (this.isHost) this.sendSeats(); // for the newcomer
         this.onChange();
@@ -113,7 +146,8 @@ export class Room {
       } else if (msg.t === 'state') {
         const m = this.members.find((x) => x.peer === msg.peer);
         const left = m?.playing && !msg.playing;
-        this.update(msg.peer, { ready: msg.ready, playing: msg.playing });
+        this.update(msg.peer, { ready: msg.ready, playing: msg.playing, away: msg.away });
+        if (this.isHost && m?.away && !msg.away) this.sendSeats(); // it may have missed them
         this.onChange();
         if (m && left && m.peer !== this.me) this.onLeave(m);
       } else if (msg.t === 'take') {
@@ -130,6 +164,29 @@ export class Room {
         if (msg.from === this.members[0]?.peer) this.onStart(msg);
       }
     };
+  }
+
+  private readonly leave = () => this.close();
+
+  /** The connection `ws` is gone: in a match, try to take our place again for a while. */
+  private lost(ws: WebSocket): void {
+    if (ws !== this.ws || this.closed) return;
+    ws.onclose = ws.onmessage = ws.onopen = null;
+    ws.close();
+    clearInterval(this.timer);
+    const now = performance.now();
+    if (!this.reconnecting) {
+      if (this.lostAt !== -Infinity) this.lostAt = now;
+      this.reconnecting = !!this.self?.playing && this.lostAt === now;
+    }
+    if (!this.reconnecting || now - this.lostAt > REJOIN_MS) {
+      this.reconnecting = false;
+      this.closed = true;
+      this.onClose();
+      return;
+    }
+    this.onChange();
+    this.timer = window.setTimeout(() => this.connect(() => ({ t: 'rejoin', room: this.code, token: this.token })), RETRY_MS);
   }
 
   private update(peer: number, change: Partial<Member>): void {
@@ -313,8 +370,10 @@ export class Room {
   }
 
   close(): void {
+    this.closed = true;
+    removeEventListener('pagehide', this.leave);
     clearInterval(this.timer);
     this.ws.onclose = null;
-    this.ws.close();
+    this.ws.close(1000); // on purpose
   }
 }

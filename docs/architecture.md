@@ -94,7 +94,9 @@ players 5-8 of 3 vs 3 / 4 vs 4 (`Machine.padsx`).
 In the browser (`apps/web`), a room is a name on the server: the peer that joined first is
 the host: it picks the mode, the team size and the input delay (by default from the pings,
 `autoDelay`) and starts; its `start` message fixes the seats for everyone. The room stays
-connected during its matches. When a player goes back to the lobby or leaves, the match ends
+connected during its matches. A player whose
+connection drops in a match has 20 s to take its place again (`rejoin`; the netplay resends
+what got lost), and a match goes on in a hidden tab (`ticks.ts`). When a player goes back to the lobby or leaves, the match ends
 for all; the next one starts once everybody is back, so no input of the old one can reach it. A seat is a team and a place (`rules/src/seats.ts`): players are numbered
 team by team (P1-P3 against P4-P6 in 3 VS 3), and each seat is a pad (team 1: pads 1, 2 and
 players 5, 7; team 2: pads 3, 4 and players 6, 8, since the multitap's Team Battle Royal puts
