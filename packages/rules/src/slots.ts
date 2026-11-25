@@ -28,7 +28,7 @@ export const EXT = {
   CURSOR: 0x6404,
   /** contact pairs (teams.ts): attacker page, defender page, 16 at most */
   PAIRS: 0x6410,
-  /** the team referee for eight slots (referee.ts) */
+  /** the team referee for eight slots and its counters 2-7 (referee.ts), 40 bytes */
   REFEREE: 0x6460,
   /** the OAM buffer 7E:3200-341F while the second OAM is drawn (oamext.ts) */
   OAM_STASH: 0x6500,

@@ -77,8 +77,9 @@ extras are players 5-8's or the CPU's. The team size is set at the match start (
   opponent who is gone (+76 = 0) is replaced, never while the wrestler pins or holds (+D0).
 - The team referee (`referee.ts`): the original keeps a pin slot per wrestler in arrays of four
   and turns wrestler numbers 1-4 into pages; it is ported to TypeScript for eight, with its rule
-  (counts, falls, releases, holds, members left, round end, no contest, time over) and the
-  original's two counters (the pin-count marks read them). The time-over sums (C10E6E) and the
+  (counts, falls, releases, holds, members left, round end, no contest, time over). Every
+  pin has its own counter, so three or more are counted at once (`big-teams.test.ts`): the
+  original's two, which the pin-count marks read, then six more in ext WRAM, without marks. The time-over sums (C10E6E) and the
   judge on the counted bars (C10D3B) take every member; the judge of C11BD3 too.
 - Graphics (`sprites.ts`): each extra mirrors a base slot (its tile base +05 and palette), in a
   third sprite bank (Machine extension: `objx` bank 2, VMAIN bit 5, `oamx` bit 2, its own

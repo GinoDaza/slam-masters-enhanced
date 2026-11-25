@@ -20,9 +20,12 @@
  * At a time over, the life sums (C10E6E) and the judge on the counted bars (C10D3B) take every
  * member of each team (the count-up on the result screen shows the four base wrestlers').
  *
- * The counters stay the original's two (`$1A00` count, `$1A02` timer, `$1A0C` in use, `$1A0E`,
- * `$1A20` the pinner's page and `$1A24` the count for the pin-count marks C21F84): a third pin at
- * the same time waits for a free one. The hold queue's display (C10EAF, the given-up member's
+ * Every pin has a counter, so any number are counted at the same time. Counters 0 and 1 are the
+ * original's (`$1A00` count, `$1A02` timer, `$1A0C` in use, `$1A0E`, `$1A20` the pinner's page and
+ * `$1A24` the count for the pin-count marks C21F84). Those arrays have no room for more (`$1A0E` + 2
+ * is the hold queue, `$1A20` + 4 the marks' counts), so counters 2-7 are in ext WRAM, after the
+ * per-slot arrays; their pins have no mark (there are two mark objects) and use the two counters'
+ * sounds in turn (the sound ids 1E-25 are two a count). The hold queue's display (C10EAF, the given-up member's
  * name) is left out.
  */
 import { rtl, rts, type Machine, type Runner } from '@ssm/core';
@@ -34,10 +37,15 @@ const big = bigTeams;
 /** per slot k (0-7): the number pinned (bit 7: held), and its counter */
 const PIN = EXT.REFEREE;
 const COUNTER = EXT.REFEREE + 8;
-/** the counters, as the original's (two) */
-const COUNT = 0x1a00;
-const TIMER = 0x1a02;
-const IN_USE = 0x1a0c;
+/** the original's counters (0, 1) and the others (2-7, in ext WRAM) */
+const COUNTERS = 8;
+const ORIGINAL_COUNTERS = 2;
+const MORE = COUNTER + 8 - ORIGINAL_COUNTERS;
+const REFEREE_BYTES = 16 + 3 * COUNTERS;
+const counterAt = (base: number, ext: number) => (j: number) => (j < ORIGINAL_COUNTERS ? base : MORE + ext * COUNTERS) + j;
+const count = counterAt(0x1a00, 0);
+const timer = counterAt(0x1a02, 1);
+const inUse = counterAt(0x1a0c, 2);
 const RELEASE = 0x1a0e;
 const QUEUE = 0x1a10;
 const QUEUE_TIMER = 0x1a12;
@@ -50,7 +58,7 @@ const SHOWN = 0x1a24;
 /** C10A0A for big teams: the members per team. */
 function countMembers(c: Machine): void {
   const w = c.wram;
-  w.fill(0, PIN, COUNTER + 8);
+  w.fill(0, PIN, PIN + REFEREE_BYTES);
   const sideA = sideOf(c, 0x0800);
   for (const team of [0, 1]) {
     const n = pages(c).filter((p) => (sideOf(c, p) === sideA) === (team === 0) && (w[p]! & 0x80) !== 0).length;
@@ -64,8 +72,8 @@ const team = (c: Machine, page: number) => c.wram[page + 0x17d]!;
 
 /** C10C1D: the count's sound. */
 function countSound(c: Machine, j: number): void {
-  const n = c.wram[COUNT + j]!;
-  if (n < 4) sound(c, (2 * n + j + 0x1e) & 0xff);
+  const n = c.wram[count(j)]!;
+  if (n < 4) sound(c, 2 * n + (j & 1) + 0x1e);
 }
 
 /** C10B2C: a pin starts or ends. */
@@ -79,19 +87,19 @@ function pinStart(c: Machine, k: number, page: number): void {
     w[PIN + k] = 0;
     if (pin & 0x80) return;
     const j = w[COUNTER + k]!;
-    w[COUNT + j] = 0;
-    w[TIMER + j] = 0;
-    w[IN_USE + j] = 0;
+    w[count(j)] = 0;
+    w[timer(j)] = 0;
+    w[inUse(j)] = 0;
     return;
   }
   if (!d0) return;
   if (!(d0 & 0x80)) {
-    const j = w[IN_USE] === 0 ? 0 : w[IN_USE + 1] === 0 ? 1 : -1;
-    if (j < 0) return; // both counters busy: try again next frame
+    let j = 0; // one counter a slot: there is always a free one
+    while (w[inUse(j)] !== 0 && j < COUNTERS - 1) j++;
     w[PIN + k] = d0;
-    w[IN_USE + j] = 1;
-    w[COUNT + j] = 0;
-    w[TIMER + j] = 0x3c;
+    w[inUse(j)] = 1;
+    w[count(j)] = 0;
+    w[timer(j)] = 0x3c;
     w[COUNTER + k] = j;
     countSound(c, j);
     return;
@@ -128,14 +136,14 @@ function pinTick(c: Machine, k: number, page: number): void {
   if (!pin) return;
   if (pin & 0x80) return hold(c, k, page);
   const j = w[COUNTER + k]!;
-  w[TIMER + j] = (w[TIMER + j]! - 1) & 0xff;
-  if (w[TIMER + j] !== 0) return;
-  w[COUNT + j] = (w[COUNT + j]! + 1) & 0xff;
+  w[timer(j)] = (w[timer(j)]! - 1) & 0xff;
+  if (w[timer(j)] !== 0) return;
+  w[count(j)] = (w[count(j)]! + 1) & 0xff;
   countSound(c, j);
-  const n = w[COUNT + j];
+  const n = w[count(j)];
   const v = pageOf(pin);
   if (n === 3) {
-    w[TIMER + j] = 0x3c;
+    w[timer(j)] = 0x3c;
     w[v + 0xd1] = 1;
     w[v] = 1;
     w[v + 0x79] = 0;
@@ -151,15 +159,15 @@ function pinTick(c: Machine, k: number, page: number): void {
     return;
   }
   if (n === 4) {
-    w[RELEASE + j] = 0x3c;
-    w[IN_USE + j] = 0;
+    if (j < ORIGINAL_COUNTERS) w[RELEASE + j] = 0x3c; // written only, as the original
+    w[inUse(j)] = 0;
     w[PIN + k] = 0;
     w[page + 0xd0] = 0;
     const t = team(c, v);
     w[LEFT + t] = (w[LEFT + t]! - 1) & 0xff;
     return;
   }
-  w[TIMER + j] = 0x3c;
+  w[timer(j)] = 0x3c;
 }
 
 /** C10C9D: what the pin-count marks (C21F84) read. */
@@ -168,7 +176,8 @@ function shown(c: Machine, k: number, page: number): void {
   const pin = w[PIN + k]!;
   if (!pin || pin & 0x80) return;
   const j = w[COUNTER + k]!;
-  w[SHOWN + j] = w[COUNT + j]!;
+  if (j >= ORIGINAL_COUNTERS) return; // two marks
+  w[SHOWN + j] = w[count(j)]!;
   wr16(c, PINNER + 2 * j, page);
 }
 

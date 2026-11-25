@@ -48,7 +48,7 @@ describe.skipIf(!haveRom())('3 vs 3 and 4 vs 4', () => {
       }
       fights.set(size, g.m.save());
     }
-  }, 180_000);
+  });
 
   const fight = (size: number) => {
     const g = new Game(loadRom());
@@ -96,7 +96,7 @@ describe.skipIf(!haveRom())('3 vs 3 and 4 vs 4', () => {
       expect(g.m.hudxRows, 'the extras HUD panels').toBe(4);
       // the extras' faces and names are their characters' portrait blocks
       expect(g.m.hudxTiles.subarray(0, 0x100).some((v) => v !== 0)).toBe(true);
-    }, 120_000);
+    });
   }
 
   it("4 VS 4: the extras' frames and palettes change in the vertical blank, with the OAM", () => {
@@ -119,7 +119,7 @@ describe.skipIf(!haveRom())('3 vs 3 and 4 vs 4', () => {
     for (let f = 0; f < 300; f++) g.step([pad(0, f), 0, 0, 0]);
     expect(changes, 'the extras change frames').toBeGreaterThan(50);
     expect(during, 'lines where bank 2 changed during the picture').toEqual([]);
-  }, 120_000);
+  });
 
   it('4 VS 4: an extra hit while lying gets its reaction script and gets back down (8A / 8C)', () => {
     const g = fight(4);
@@ -138,7 +138,48 @@ describe.skipIf(!haveRom())('3 vs 3 and 4 vs 4', () => {
       }
     }
     expect(hits, 'extras hit while lying').toBeGreaterThan(0);
-  }, 120_000);
+  });
+
+  it('4 VS 4: four pins at once are all counted, each to its fall and release', () => {
+    const g = fight(4);
+    const w = g.m.wram;
+    const all = pages(g.m);
+    const side = (s: number) => all.filter((p) => w[p + 0x17d] === s);
+    const [pinners, pinned] = [side(0), side(1)];
+    // the referee alone (C10A55), so the wrestlers' own states do not end the pins
+    const referee = g.runner.overrides.get(0xc10a55)!;
+    const frame = () => {
+      g.m.push8(0xc0);
+      g.m.push16(0x0000);
+      referee(g.m);
+    };
+    const left = () => w[0x1a17]!;
+    const queue = () => [w[0x1a10]!, w[0x1a11]!];
+    for (const s of [0x1a64, 0x1a65, 0x1a61, 0x1a1c]) w[s] = 0;
+    pinners.forEach((p, k) => (w[p + 0xd0] = w[pinned[k]! + 0x78]! + 1));
+    // the fourth is kicked out of, and starts again a second later
+    const last = pinners[3]!;
+    const d0 = w[last + 0xd0]!;
+    frame();
+    w[last + 0xd0] = 0;
+    for (let f = 1; f < 60; f++) frame();
+    w[last + 0xd0] = d0;
+    for (let f = 60; f < 178; f++) frame();
+    expect(pinned.map((p) => w[p + 0xd1]), 'no fall yet').toEqual([0, 0, 0, 0]);
+    for (let f = 178; f < 182; f++) frame();
+    expect(pinned.map((p) => w[p + 0xd1]), 'three fall together').toEqual([1, 1, 1, 0]);
+    expect(left()).toBe(4);
+    for (let f = 182; f < 239; f++) frame();
+    expect(pinned.map((p) => w[p + 0xd1]), 'then the fourth').toEqual([1, 1, 1, 0]);
+    for (let f = 239; f < 243; f++) frame();
+    expect(pinned.map((p) => w[p + 0xd1]), 'a second later').toEqual([1, 1, 1, 1]);
+    expect(left(), 'three released').toBe(1);
+    expect(pinners.map((p) => w[p + 0xd0] !== 0)).toEqual([false, false, false, true]);
+    expect(queue(), 'the hold queue, next to the counters, is untouched').toEqual([0, 0]);
+    for (let f = 243; f < 303; f++) frame();
+    expect(left(), 'the team is out').toBe(0);
+    expect(w[0x1a61], 'the round is decided').toBe(1);
+  });
 
   it('3 VS 3: a time over judges the teams with the extras life', () => {
     const g = fight(3);
@@ -155,7 +196,7 @@ describe.skipIf(!haveRom())('3 vs 3 and 4 vs 4', () => {
     }
     expect(state.toString(16), "pad 1's team (A) won").toBe('20');
     for (const p of pages(g.m)) expect(w[p]!, p.toString(16)).toBe(sideA(p) ? 0x80 : 1);
-  }, 120_000);
+  });
 
   it('4 VS 4: a rollback restores the extras, the second OAM and the HUD panels', () => {
     const start = fights.get(4)!;
@@ -175,5 +216,5 @@ describe.skipIf(!haveRom())('3 vs 3 and 4 vs 4', () => {
     expect(session.rollbacks).toBeGreaterThan(0);
     expect(checksum(g.m.save())).toBe(checksum(straight.m.save()));
     expect(start.length).toBe(g.m.stateSize);
-  }, 120_000);
+  });
 });
