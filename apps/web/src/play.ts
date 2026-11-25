@@ -8,6 +8,7 @@ import { installRules, plugMultitap, presetTeamSize, type Ruleset } from '@ssm/r
 import { Speaker } from './audio.ts';
 import { Controls } from './input.ts';
 import type { Room } from './room.ts';
+import { getSettings, onSettings } from './settings.ts';
 
 const FRAME_MS = 1000 / 60;
 
@@ -31,11 +32,23 @@ export interface Stats {
   desync: number;
 }
 
-/** Start the game; returns the function that stops it. */
-export function play(canvas: HTMLCanvasElement, rom: Uint8Array, rules: Ruleset, online: Online | null, onStats: (s: Stats) => void): () => void {
-  const controls = new Controls();
+export interface Playing {
+  /** A menu is open over the game: a local game pauses, an online one goes on without the local controls. */
+  menu(open: boolean): void;
+  stop(): void;
+}
+
+/** Start the game. */
+export function play(canvas: HTMLCanvasElement, rom: Uint8Array, rules: Ruleset, online: Online | null, onStats: (s: Stats) => void): Playing {
+  const controls = new Controls(online !== null);
   controls.attach();
   const speaker = new Speaker();
+  const setVolume = () => {
+    const s = getSettings();
+    speaker.setVolume(s.muted ? 0 : s.volume);
+  };
+  setVolume();
+  const offSettings = onSettings(setVolume);
   const ctx = canvas.getContext('2d')!;
   const image = ctx.createImageData(rules.screenWidth, HEIGHT);
   const game = new Game(new RomImage(rom));
@@ -67,6 +80,7 @@ export function play(canvas: HTMLCanvasElement, rom: Uint8Array, rules: Ruleset,
     };
   }
 
+  let paused = false;
   let raf = 0;
   let last = performance.now();
   let acc = 0;
@@ -75,6 +89,7 @@ export function play(canvas: HTMLCanvasElement, rom: Uint8Array, rules: Ruleset,
     acc += Math.min(now - last, 100);
     last = now;
     let ran = false;
+    if (paused) acc = 0;
     while (acc >= FRAME_MS) {
       acc -= FRAME_MS;
       const pads = controls.read();
@@ -100,10 +115,18 @@ export function play(canvas: HTMLCanvasElement, rom: Uint8Array, rules: Ruleset,
   };
   raf = requestAnimationFrame(loop);
 
-  return () => {
-    cancelAnimationFrame(raf);
-    controls.detach();
-    speaker.stop();
-    if (online) online.room.onBinary = () => {};
+  return {
+    menu(open) {
+      controls.block(open);
+      paused = open && !online;
+      speaker.pause(paused);
+    },
+    stop() {
+      offSettings();
+      cancelAnimationFrame(raf);
+      controls.detach();
+      speaker.stop();
+      if (online) online.room.onBinary = () => {};
+    },
   };
 }

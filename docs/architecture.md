@@ -124,9 +124,15 @@ server later).
 
 Menus (`apps/web`) are designed on a fixed 1600x900 screen that `Fit` (`Fit.tsx`) scales to
 the window with CSS zoom, so they fit without scrolling on 16:9 and 16:10; text is 24 px,
-never under 16 px, at that size. The game is alone on a black screen at the largest integer
-scale that fits (4x at 1920x1080, 5x at 1920x1200), and Esc leaves. Keyboard: W A S D move,
-K attacks (Y), Space jumps (B), E pins (A), Enter is START; gamepads map by position.
+never under 16 px, at that size. The game is alone on a black
+screen, filling the window or at whole pixels. Esc or the corner button opens the menu: a local
+game pauses, an online match goes on without the local controls.
+
+The settings (`settings.ts`: key and gamepad layouts, volume, picture) are kept in the browser
+and apply at once. They end in pad words, volume and CSS, so they never reach the game's state.
+Keyboard defaults: W A S D move, K attacks (Y), Space jumps (B), E pins (A), Enter is START;
+gamepads map by position (X, L and R too, for the OPTION screen). Local play can also seat a second keyboard layout on pad 2 and start
+the gamepads at pad 2; online, the first keyboard and the first gamepad play the local seat.
 
 ## Tests
 

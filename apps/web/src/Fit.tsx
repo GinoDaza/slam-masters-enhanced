@@ -33,8 +33,12 @@ export function Fit({ children }: { children: ReactNode }) {
   );
 }
 
-/** Scale of a game picture `width` pixels wide that fills the window (aspect kept). */
-export function useGameScale(width = WIDTH): number {
+/**
+ * Scale of a game picture `width` pixels wide that fills the window (aspect kept); `integer`:
+ * the largest whole number of screen pixels a pixel.
+ */
+export function useGameScale(width = WIDTH, integer = false): number {
   const [w, h] = useWindowSize();
-  return Math.min(w / width, h / HEIGHT);
+  const fill = Math.min(w / width, h / HEIGHT);
+  return integer ? Math.max(1, Math.floor(fill * devicePixelRatio)) / devicePixelRatio : fill;
 }

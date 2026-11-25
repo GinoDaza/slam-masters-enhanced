@@ -1,12 +1,12 @@
-import { useEffect, useRef, useState } from 'react';
-import { HEIGHT } from '@ssm/core';
+import { useEffect, useState } from 'react';
 import { PLAYABLE_RULES, rulesById, type Ruleset } from '@ssm/rules';
-import { Fit, useGameScale } from './Fit.tsx';
-import { KEY_HELP } from './input.ts';
-import { play, type Online } from './play.ts';
+import { Fit } from './Fit.tsx';
+import { GameView } from './GameView.tsx';
+import type { Online } from './play.ts';
 import { MAX_PLAYERS, Room, TEAM_SEATS } from './room.ts';
+import { SettingsPanel } from './SettingsPanel.tsx';
 
-type Screen = { kind: 'menu' } | { kind: 'room'; room: Room } | { kind: 'game'; online: Online | null; rules: Ruleset };
+type Screen = { kind: 'menu' } | { kind: 'settings' } | { kind: 'room'; room: Room } | { kind: 'game'; online: Online | null; rules: Ruleset };
 
 const params = new URLSearchParams(location.search);
 
@@ -44,11 +44,13 @@ export function App() {
           <Menu
             rules={rules}
             setRules={setRules}
+            onSettings={() => setScreen({ kind: 'settings' })}
             onLocal={() => setScreen({ kind: 'game', online: null, rules })}
             onJoin={(code, name) => setScreen({ kind: 'room', room: new Room(code, name) })}
           />
         </Fit>
       )}
+      {screen.kind === 'settings' && <Fit><SettingsPanel onBack={toMenu} /></Fit>}
       {screen.kind === 'room' && (
         <Fit>
           <Lobby room={screen.room} rules={rules} setRules={setRules} onStart={(online, r) => setScreen({ kind: 'game', online, rules: r })} onBack={toMenu} />
@@ -127,7 +129,7 @@ function newRoomCode(taken: RoomInfo[]): string {
   for (let n = 1; ; n++) if (!taken.some((r) => r.code === `ROOM${n}`)) return `ROOM${n}`;
 }
 
-function Menu({ rules, setRules, onLocal, onJoin }: RulesProps & { onLocal: () => void; onJoin: (code: string, name: string) => void }) {
+function Menu({ rules, setRules, onSettings, onLocal, onJoin }: RulesProps & { onSettings: () => void; onLocal: () => void; onJoin: (code: string, name: string) => void }) {
   const [name, setName] = useState(() => load('name') ?? '');
   const [code, setCode] = useState(params.get('room') ?? '');
   const rooms = useRooms();
@@ -141,6 +143,7 @@ function Menu({ rules, setRules, onLocal, onJoin }: RulesProps & { onLocal: () =
       <h1>Slam Masters Enhanced</h1>
       <div className="row">
         <button onClick={onLocal}>Local game</button>
+        <button onClick={onSettings}>Settings</button>
         <RulesPicker rules={rules} setRules={setRules} />
       </div>
       <input placeholder="Your name" value={name} maxLength={16} onChange={(e) => setName(e.target.value)} />
@@ -163,21 +166,7 @@ function Menu({ rules, setRules, onLocal, onJoin }: RulesProps & { onLocal: () =
         <input placeholder="Room name" value={code} maxLength={16} onChange={(e) => setCode(e.target.value.toUpperCase())} onKeyDown={(e) => e.key === 'Enter' && join(code)} />
         <button disabled={!code.trim()} onClick={() => join(code)}>Join room</button>
       </div>
-      <Controls />
     </section>
-  );
-}
-
-function Controls() {
-  return (
-    <dl className="keys">
-      {KEY_HELP.map(([k, what]) => (
-        <div key={k}>
-          <dt>{k}</dt>
-          <dd>{what}</dd>
-        </div>
-      ))}
-    </dl>
   );
 }
 
@@ -281,37 +270,6 @@ function Lobby({ room, rules, setRules, onStart, onBack }: RulesProps & { room: 
         <button onClick={onBack}>Leave</button>
         <button onClick={copyInvite}>{copied ? 'Copied!' : 'Copy invite link'}</button>
       </div>
-      <Controls />
     </section>
-  );
-}
-
-/** The game alone on a black screen, filling it. Esc leaves. */
-function GameView({ rom, online, rules, onBack }: { rom: Uint8Array; online: Online | null; rules: Ruleset; onBack: () => void }) {
-  const canvas = useRef<HTMLCanvasElement>(null);
-  const scale = useGameScale(rules.screenWidth);
-  const [notice, setNotice] = useState('');
-
-  useEffect(() => {
-    if (!canvas.current) return;
-    const stop = play(canvas.current, rom, rules, online, (s) => s.desync >= 0 && setNotice(`Desync at frame ${s.desync}.`));
-    if (online) {
-      online.room.onLeave = (m) => setNotice(`${m.name} left the match.`);
-      online.room.onClose = () => setNotice('Lost the connection to the server.');
-    }
-    return stop;
-  }, [rom, online, rules]);
-
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => e.code === 'Escape' && onBack();
-    addEventListener('keydown', onKey);
-    return () => removeEventListener('keydown', onKey);
-  }, [onBack]);
-
-  return (
-    <div className="game">
-      <canvas ref={canvas} width={rules.screenWidth} height={HEIGHT} style={{ width: rules.screenWidth * scale, height: HEIGHT * scale }} />
-      {notice && <p className="notice">{notice} Esc to leave.</p>}
-    </div>
   );
 }

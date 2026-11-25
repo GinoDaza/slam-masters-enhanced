@@ -92,12 +92,21 @@ function mainThreadSound(ctx: AudioContext): { node: AudioNode; post: (s: Int16A
 export class Speaker {
   private ctx: AudioContext | null = null;
   private post: ((samples: Int16Array) => void) | null = null;
-  private readonly resume = () => void this.ctx?.resume();
+  private gain: GainNode | null = null;
+  private volume = 1;
+  private paused = false;
+  private readonly resume = () => {
+    if (!this.paused) void this.ctx?.resume();
+  };
 
   /** Set up the audio graph; it starts playing after the first key press or click. */
   async start(): Promise<void> {
     const ctx = new AudioContext({ latencyHint: 'interactive' });
     this.ctx = ctx;
+    const gain = ctx.createGain();
+    gain.gain.value = this.volume;
+    gain.connect(ctx.destination);
+    this.gain = gain;
     // browsers start audio only after a user gesture
     window.addEventListener('keydown', this.resume);
     window.addEventListener('pointerdown', this.resume);
@@ -111,14 +120,26 @@ export class Speaker {
         outputChannelCount: [2],
         processorOptions: { inRate: SAMPLE_RATE },
       });
-      node.connect(ctx.destination);
+      node.connect(gain);
       this.post = (s) => node.port.postMessage(s);
     } else {
       const { node, post } = mainThreadSound(ctx);
-      node.connect(ctx.destination);
+      node.connect(gain);
       this.post = post;
     }
-    void ctx.resume();
+    this.resume();
+  }
+
+  /** 0-100; squared, which the ear takes as even steps. */
+  setVolume(v: number): void {
+    this.volume = (v / 100) ** 2;
+    if (this.gain) this.gain.gain.value = this.volume;
+  }
+
+  pause(on: boolean): void {
+    this.paused = on;
+    if (on) void this.ctx?.suspend();
+    else this.resume();
   }
 
   /** Queue one frame's samples (interleaved stereo s16). */
@@ -131,6 +152,7 @@ export class Speaker {
     window.removeEventListener('pointerdown', this.resume);
     void this.ctx?.close();
     this.ctx = null;
+    this.gain = null;
     this.post = null;
   }
 }
