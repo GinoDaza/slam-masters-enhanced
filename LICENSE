@@ -19,3 +19,13 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
+
+Exceptions
+
+The MIT License above does not cover:
+
+- packages/core/src/apu/dsp.ts: ported from SPC_DSP (snes_spc 0.9.0) by Shay Green
+  (blargg), LGPL-2.1-or-later: https://www.gnu.org/licenses/old-licenses/lgpl-2.1.html
+- packages/core/src/apu/smp.ts: translated from Snes9x (apu/bapu/smp, from bsnes),
+  under its original authors' terms; Snes9x allows non-commercial use only.
+- Screenshots and other game imagery: property of their respective owners.
